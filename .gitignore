@@ -1,0 +1,30 @@
+# ExtUtils::MakeMaker build artifacts
+/Makefile
+/Makefile.old
+/MYMETA.json
+/MYMETA.yml
+/META_new.json
+/META_new.yml
+/blib/
+/pm_to_blib
+/pm_to_blib.ts
+/blibdirs.ts
+/MANIFEST.bak
+/MANIFEST.SKIP.bak
+
+# Release tarballs and staging directories
+/Getopt-Pad-*.tar.gz
+/Getopt-Pad-*/
+
+# Maintainer-only docs and working notes
+/RELEASING.md
+/PLAN.md
+/DESIGN.md
+
+# Test and coverage leftovers
+/.prove
+/cover_db/
+/nytprof.out
+/nytprof/
+/.claude/
+/lsp.log

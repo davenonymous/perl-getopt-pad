@@ -1,0 +1,8 @@
+Revision history for Getopt::Pad
+
+0.01    2026-09-21
+        - Initial development release: typed options, positional args,
+          nested subcommands, config files, generated help
+        - Shell completion for bash and zsh via --create-completions;
+          a valid coderef now returns the allowed list, lazyValid holds
+          the predicate form
