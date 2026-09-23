@@ -8,7 +8,7 @@ use experimental 'signatures';
 use Object::Pad;
 use Getopt::Pad::Registry;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 my @builtins = map { "Getopt::Pad::Config::Format::$_" } qw(Yaml Json);
 my $registry;

@@ -6,7 +6,7 @@ use Getopt::Pad::Type;
 class Getopt::Pad::Type::Path :isa(Getopt::Pad::Type) :abstract {
 	use constant SPEC_KEYS => ['mustExist'];
 
-	our $VERSION = '0.01';
+	our $VERSION = '0.02';
 
 	field $mustExist :param :reader = 0;
 

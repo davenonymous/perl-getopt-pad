@@ -6,7 +6,7 @@ use Getopt::Pad::Type;
 class Getopt::Pad::Type::Number :isa(Getopt::Pad::Type) :abstract {
 	use Scalar::Util qw(looks_like_number);
 
-	our $VERSION = '0.01';
+	our $VERSION = '0.02';
 
 	use constant SPEC_KEYS => ['min', 'max'];
 

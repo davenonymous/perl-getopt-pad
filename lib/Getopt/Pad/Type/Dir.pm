@@ -6,7 +6,7 @@ use Getopt::Pad::Type::Path;
 class Getopt::Pad::Type::Dir :isa(Getopt::Pad::Type::Path) :strict(params) {
 	use constant NAMES => ['dir', 'directory'];
 
-	our $VERSION = '0.01';
+	our $VERSION = '0.02';
 
 	method label() { return 'Path' }
 
