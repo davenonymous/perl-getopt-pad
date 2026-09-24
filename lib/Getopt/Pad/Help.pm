@@ -180,6 +180,7 @@ class Getopt::Pad::Help :strict(params) {
 	method optionLabel($option) {
 		my $label = sprintf($option->negatable ? '--[no-]%s' : '--%s', $option->name);
 		return $label . ' <key=value>' if $option->hash;
+		return $label . ' <a,b,...>'   if $option->csv;
 		return $label . ' <>'          if $option->type->takesValue;
 		return $label;
 	}

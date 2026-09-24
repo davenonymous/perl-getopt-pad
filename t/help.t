@@ -19,6 +19,7 @@ my $spec = Getopt::Pad::Spec->new(raw => {
 		'log-level' => { type => 's', default => 'info', valid => [qw(debug info warn)], help => 'Logging level to use', group => 'General' },
 		'private'   => { type => '!', default => 1, help => 'Create as private', group => 'Target' },
 		'define|D'  => { type => 's', hash => 1, default => { os => 'linux', arch => 'x86' }, help => 'Build variables', group => 'General' },
+		'tag'       => { type => 's', multiple => 1, csv => 1, help => 'Labels to attach', group => 'General' },
 	},
 	args => [
 		{ type => 'url', short => 'source-url', required => 1, help => 'The source address' },
@@ -44,6 +45,7 @@ subtest 'rendered layout' => sub {
 	like $rendered, qr/^\s+Valid   = \[ debug, info, warn \]$/m, 'valid subline';
 	like $rendered, qr/^\s+Default = info$/m, 'default subline';
 	like $rendered, qr/^   --define <key=value>\s+Build variables$/m, 'hash option label';
+	like $rendered, qr/^   --tag <a,b,\.\.\.>\s+Labels to attach$/m, 'csv option label';
 	like $rendered, qr/^\s+Default = arch=x86, os=linux$/m, 'hash default subline';
 
 	my $generalPos = index($rendered, '## General');

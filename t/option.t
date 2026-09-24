@@ -37,6 +37,13 @@ subtest 'multiple options' => sub {
 	is option('tag', type => 's', multiple => 1)->readerValue(), [], 'absent without a default is an empty list';
 };
 
+subtest 'csv options' => sub {
+	my $tag = option('tag', type => 's', multiple => 1, csv => 1);
+	is $tag->readerValue(config => { tag => 'a, b' }), ['a', 'b'], 'a lone config value is split';
+	is $tag->readerValue(config => { tag => ['a,b', 'c'] }), ['a,b', 'c'], 'a config list is taken as given';
+	like dies { $tag->readerValue(config => { tag => undef }) }, qr/^config value for 'tag': no value given/, 'a null config value is still reported as missing';
+};
+
 subtest 'hash options' => sub {
 	my $define = option('define', type => 'i', hash => 1, default => { a => '1' });
 	is $define->readerValue(commandLine => { define => { b => '2' } }), { b => 2 }, 'the given mapping replaces the default, values coerced';

@@ -68,6 +68,17 @@ subtest 'multiple' => sub {
 	is $absent->tag, [], 'absent multiple option reads as an empty list';
 };
 
+subtest 'csv' => sub {
+	my %csv = (tag => { type => 's', multiple => 1, csv => 1 });
+	is parseWith(['--tag', 'a, b', '--tag', 'c,'], options => {%csv})->tag, ['a', 'b', 'c'], 'words split at commas, items trimmed, trailing comma tolerated';
+	is parseWith(['--n', '1,2'], options => { n => { type => 'i', multiple => 1, csv => 1 } })->n, [1, 2], 'items pass the type';
+
+	like dies { parseWith(['--tag', 'a,,b'], options => {%csv}) }, qr/option '--tag': 'a,,b' contains an empty item/, 'empty item in the middle';
+	like dies { parseWith(['--tag', ','], options => {%csv}) },    qr/option '--tag': ',' contains an empty item/,    'a lone comma';
+	like dies { parseWith(['--tag', 'a,x'], options => { tag => { type => 's', multiple => 1, csv => 1, valid => ['a'] } }) },
+		qr/option '--tag': 'x' is not one of: a/, 'the valid list applies per item';
+};
+
 subtest 'hash' => sub {
 	my $opt = GetOptions(
 		argv    => ['--define', 'os=linux', '--define', 'os=bsd', '-D', 'flags=a=b'],

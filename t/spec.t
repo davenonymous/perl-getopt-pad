@@ -65,6 +65,9 @@ subtest 'spec errors fail loudly' => sub {
 	like dies { buildSpec(options => { define => { type => 's', multiple => 1, hash => 1 } }) },
 		qr/multiple and hash are mutually exclusive/, 'multiple plus hash';
 
+	like dies { buildSpec(options => { tag => { type => 's', csv => 1 } }) },
+		qr/option 'tag': csv requires multiple/, 'csv without multiple';
+
 	like dies { buildSpec(options => { define => { type => 's', hash => 1, default => ['a'] } }) },
 		qr/default for a hash option must be a hash reference/, 'list default for a hash option';
 

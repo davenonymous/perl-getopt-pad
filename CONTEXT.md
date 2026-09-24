@@ -93,9 +93,9 @@ _Avoid_: origin, input, layer
 
 **Value pipeline**:
 The checks a raw value from a Value source passes inside its Option before it
-becomes a Reader value: shape (a single value, a list for `multiple`, a
-mapping of `key=value` pairs for `hash`), then per value the Type's check and
-coercion, the Valid list and the lazyValid predicate. Spec defaults pass it
+becomes a Reader value: shape (a single value, a list for `multiple` - each
+word and lone config value split at commas for `csv` - a mapping of
+`key=value` pairs for `hash`), then per value the Type's check and coercion, the Valid list and the lazyValid predicate. Spec defaults pass it
 once, when the Spec is built. An Option no Value source set and without a
 default reads as an empty list or mapping in those shapes, else undef.
 _Avoid_: validation chain, value processing

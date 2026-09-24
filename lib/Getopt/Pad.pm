@@ -156,6 +156,10 @@ C<valid>.
 
 =item * C<multiple> - the option may be repeated. The reader returns an arrayref.
 
+=item * C<csv> - with C<multiple>: every given value is split at commas
+(C<--tag a,b --tag c> reads as C<['a', 'b', 'c']>). Items are trimmed, one
+trailing comma is tolerated, an empty item is an error.
+
 =item * C<hash> - the option takes C<key=value> pairs (C<--define os=linux
 --define arch=x86>) and the reader returns a hashref. Repeating a key
 overwrites its value. Every value passes the type, C<valid> and
@@ -226,8 +230,8 @@ containing a mapping of option names to values:
 Config values run through the same checks as command line values. A value
 without content (YAML C<~> or an empty entry, JSON C<null>) is an error, as
 is a list or mapping for an option without C<multiple> or C<hash>. A
-C<multiple> option takes a list or a single value, a C<hash> option a
-mapping. Flag and bool options accept only C<true>/C<false>, 1 and 0,
+C<multiple> option takes a list or a single value (split at commas for a
+C<csv> option; a list is taken as given), a C<hash> option a mapping. Flag and bool options accept only C<true>/C<false>, 1 and 0,
 counters only non-negative integers.
 
 A C<--create-default-config PATH> option is added as well: it writes a

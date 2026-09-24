@@ -25,6 +25,7 @@ my %raw = (
 				'force|f'   => {},
 				'mode'      => { type => 's', valid => [qw(soft hard)] },
 				'define|D'  => { type => 's', hash => 1, valid => [qw(bsd linux)] },
+				'tag'       => { type => 's', multiple => 1, csv => 1, valid => [qw(alpha beta)] },
 			},
 		},
 		list => {
@@ -46,8 +47,8 @@ subtest 'commands and option spellings' => sub {
 	is candidatesFor('d'),   ['none', 'delete'],         'command prefix filters';
 	is candidatesFor('-'),   ['none', '--create-completions', '--log-file', '--no-verbose', '--verbose', '-v'], 'a dash lists the visible spellings, negated forms included';
 	is candidatesFor('--l'), ['none', '--log-file'],     'option prefix filters';
-	is candidatesFor('delete', ''),   ['none', '--define', '--force', '--mode', '--user-id', '-D', '-f', '-u'], 'a Level without commands or args offers its options';
-	is candidatesFor('delete', '--'), ['none', '--define', '--force', '--mode', '--user-id'],             'two dashes narrow to long spellings';
+	is candidatesFor('delete', ''),   ['none', '--define', '--force', '--mode', '--tag', '--user-id', '-D', '-f', '-u'], 'a Level without commands or args offers its options';
+	is candidatesFor('delete', '--'), ['none', '--define', '--force', '--mode', '--tag', '--user-id'],             'two dashes narrow to long spellings';
 	is candidatesFor('bogus', ''),    ['none'], 'an unknown command completes nothing';
 	is candidatesFor('--', '-'),      ['none'], 'no options after --';
 };
@@ -58,9 +59,11 @@ subtest 'option values' => sub {
 	is candidatesFor('delete', '--user-id=1'),    ['none', '--user-id=10', '--user-id=11'], 'inline value keeps the option spelling';
 	is candidatesFor('delete', '-u', ''),         ['none', '10', '11', '25'], 'single-letter alias';
 	is candidatesFor('delete', '-fu', ''),        ['none', '10', '11', '25'], 'value-taking option last in a bundle';
-	is candidatesFor('delete', '-uf', ''),        ['none', '--define', '--force', '--mode', '--user-id', '-D', '-f', '-u'], 'a bundle carrying its value inline swallows nothing';
+	is candidatesFor('delete', '-uf', ''),        ['none', '--define', '--force', '--mode', '--tag', '--user-id', '-D', '-f', '-u'], 'a bundle carrying its value inline swallows nothing';
 	is candidatesFor('delete', '--mode', 's'),    ['none', 'soft'], 'static valid list';
-	is candidatesFor('delete', '--force', ''),    ['none', '--define', '--force', '--mode', '--user-id', '-D', '-f', '-u'], 'a flag takes no value';
+	is candidatesFor('delete', '--force', ''),    ['none', '--define', '--force', '--mode', '--tag', '--user-id', '-D', '-f', '-u'], 'a flag takes no value';
+	is candidatesFor('delete', '--tag', 'b'),          ['none', 'beta'], 'a csv option completes its first item';
+	is candidatesFor('delete', '--tag', 'alpha,b'),    ['none', 'alpha,beta'], 'a csv option completes behind the last comma';
 	is candidatesFor('delete', '--define', 'os'),      ['none'], 'a hash option offers nothing before the =';
 	is candidatesFor('delete', '--define', 'os=l'),    ['none', 'os=linux'], 'a hash option completes the value behind its key';
 	is candidatesFor('delete', '--define=os='),        ['none', '--define=os=bsd', '--define=os=linux'], 'inline hash value keeps spelling and key';

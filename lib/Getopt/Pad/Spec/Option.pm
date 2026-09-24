@@ -12,10 +12,12 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	our $VERSION = '0.02';
 
 	# The Value sources a parse hands over, in order of precedence, each with
-	# the wording of its user errors; the spec default follows them.
+	# the wording of its user errors; the spec default follows them. The
+	# command line gives a multiple option one word per occurrence, a config
+	# file a lone value or a list.
 	my @valueSources = (
-		{ key => 'commandLine', problemFormat => "option '--%s': %s" },
-		{ key => 'config',      problemFormat => "config value for '%s': %s" },
+		{ key => 'commandLine', problemFormat => "option '--%s': %s",           givesWords => 1 },
+		{ key => 'config',      problemFormat => "config value for '%s': %s", givesWords => 0 },
 	);
 	my %isValueSource = map { $_->{key} => 1 } @valueSources;
 
@@ -39,6 +41,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	field $help     :reader = '';
 	field $multiple :reader = 0;
 	field $hash     :reader = 0;
+	field $csv      :reader = 0;
 	field $hidden   :reader = 0;
 
 	ADJUST {
@@ -67,6 +70,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		$help     = delete $spec{help} // '';
 		$multiple = delete $spec{multiple} ? 1 : 0;
 		$hash     = delete $spec{hash} ? 1 : 0;
+		$csv      = delete $spec{csv} ? 1 : 0;
 		$hidden   = delete $spec{hidden} ? 1 : 0;
 
 		specError("option '%s': unknown key(s): %s", $name, join(', ', sort keys %spec)) if %spec;
@@ -74,6 +78,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		specError("option '%s': multiple requires a value-taking type, not '%s'", $name, $typeName) if $multiple && !$type->takesValue;
 		specError("option '%s': hash requires a value-taking type, not '%s'", $name, $typeName) if $hash && !$type->takesValue;
 		specError("option '%s': multiple and hash are mutually exclusive", $name) if $multiple && $hash;
+		specError("option '%s': csv requires multiple", $name) if $csv && !$multiple;
 		specError("option '%s': valid must be an array or code reference", $name) if defined $valid && ref $valid ne 'ARRAY' && ref $valid ne 'CODE';
 		specError("option '%s': lazyValid must be a code reference", $name) if defined $lazyValid && ref $lazyValid ne 'CODE';
 
@@ -156,7 +161,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		foreach my $source (@valueSources) {
 			my $given = $sources{$source->{key}} // {};
 			next if !exists $given->{$name};
-			return $self->validatedValue($given->{$name}, $source->{problemFormat});
+			return $self->validatedValue($given->{$name}, $source);
 		}
 
 		return $self->copiedDefault if $hasDefault;
@@ -164,13 +169,34 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		return $self->emptyValue;
 	}
 
-	method validatedValue($value, $problemFormat) {
+	method validatedValue($value, $source) {
+		my $problemFormat = $source->{problemFormat};
 		return $self->validatedHashValue($value, $problemFormat) if $hash;
 		return $self->validatedSingleValue($value, $problemFormat) if !$multiple;
+		return [map { $self->validatedSingleValue($_, $problemFormat) } $self->listItems($value, $source)];
+	}
 
-		# A config file may give a lone value for a multiple option.
-		my @values = ref $value eq 'ARRAY' ? $value->@* : ($value);
-		return [map { $self->validatedSingleValue($_, $problemFormat) } @values];
+	# The items a multiple option received from $source. A csv option splits
+	# every word and every lone config value at commas; a config list is
+	# taken as given.
+	method listItems($value, $source) {
+		my $isConfigList = ref $value eq 'ARRAY' && !$source->{givesWords};
+		return $value->@* if $isConfigList;
+
+		my @scalars = ref $value eq 'ARRAY' ? $value->@* : ($value);
+		return @scalars if !$csv;
+		return map { $self->csvItems($_, $source->{problemFormat}) } @scalars;
+	}
+
+	# Items are trimmed; one trailing comma is tolerated, an empty item is
+	# not. An undefined value passes through to be reported as missing.
+	method csvItems($word, $problemFormat) {
+		return ($word) if !defined $word;
+
+		my $trimmed = $word =~ s/\A\s+|\s+\z//gr =~ s/,\z//r;
+		my @items   = map { s/\A\s+|\s+\z//gr } split /,/, $trimmed, -1;
+		Getopt::Pad::Error->throw($problemFormat, $name, sprintf("'%s' contains an empty item", $word)) if !@items || grep { $_ eq '' } @items;
+		return @items;
 	}
 
 	# The command line gives key=value pairs already split into a mapping; a
@@ -216,7 +242,7 @@ Getopt::Pad::Spec::Option - one option spec
 
 =head1 DESCRIPTION
 
-A single validated option spec: primary name, aliases, type instance, reader name, and the required/default/valid/lazyValid/group/help/multiple/hash settings. A default is validated and coerced at construction time, in the option's shape: a list for a multiple option, a mapping for a hash option. readerValue resolves the reader value for one parse: it takes the first value source that set the option (command line, then config file) or else the spec default, runs every value through checkValue, the single check/coerce pipeline (a hash option's problems name their key), and throws a Getopt::Pad::Error worded for that source, or for a missing required option. An option no source set and without a default reads as an empty list (multiple), an empty mapping (hash) or undef. validValues lists what the valid constraint allows: the static list, or the array reference the valid coderef returns when called; shell completion asks it for candidates. lazyValid is a predicate run after the valid check. Auto options may carry a trigger, the reaction the parser runs when the parsed command line sets the option.
+A single validated option spec: primary name, aliases, type instance, reader name, and the required/default/valid/lazyValid/group/help/multiple/hash/csv settings. A default is validated and coerced at construction time, in the option's shape: a list for a multiple option, a mapping for a hash option. readerValue resolves the reader value for one parse: it takes the first value source that set the option (command line, then config file) or else the spec default, splits the words and lone config values of a csv option at commas, runs every value through checkValue, the single check/coerce pipeline (a hash option's problems name their key), and throws a Getopt::Pad::Error worded for that source, or for a missing required option. An option no source set and without a default reads as an empty list (multiple), an empty mapping (hash) or undef. validValues lists what the valid constraint allows: the static list, or the array reference the valid coderef returns when called; shell completion asks it for candidates. lazyValid is a predicate run after the valid check. Auto options may carry a trigger, the reaction the parser runs when the parsed command line sets the option.
 
 Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
 
