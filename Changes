@@ -14,6 +14,8 @@ Revision history for Getopt::Pad
         - Add objectlist options: with objectlist => 1 an option takes
           --name INDEX.FIELD=VALUE words and its reader returns a list of
           hashrefs. The indices must form 0..n-1
+        - Add createPathIfMissing to the file and dir types: the path is
+          created, parents included, once the parse settles on it
 
 0.02    2026-09-23
         - Fix the release target packing build artefacts (blib/) into the

@@ -103,7 +103,11 @@ class Getopt::Pad::Parser :strict(params) {
 	method validatedArgValue($arg, $value) {
 		my $problem = $arg->type->check($value);
 		Getopt::Pad::Error->throw("argument <%s>: %s", $arg->short, $problem) if defined $problem;
-		return $arg->type->coerce($value);
+
+		my $coerced = $arg->type->coerce($value);
+		$problem = $arg->type->prepare($coerced);
+		Getopt::Pad::Error->throw("argument <%s>: %s", $arg->short, $problem) if defined $problem;
+		return $coerced;
 	}
 
 	method consumeArgs($level, $words) {

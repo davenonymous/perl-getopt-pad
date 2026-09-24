@@ -2,6 +2,7 @@ use v5.26;
 use experimental 'signatures';
 use Test2::V0;
 
+use File::Temp qw(tempdir);
 use Getopt::Pad;
 use Getopt::Pad::Spec;
 use Getopt::Pad::Parser;
@@ -117,6 +118,24 @@ subtest 'objectlist' => sub {
 	like dies { parseWith(['--server', '0.a.b=x'], options => {%server}) }, qr/invalid key '0.a.b'/, 'nested fields are rejected';
 	like dies { parseWith(['--limit', '0.cpu=lots'], options => { limit => { type => 'i', objectlist => 1 } }) },
 		qr/option '--limit': entry 0: key 'cpu': 'lots' is not an integer/, 'a value failing the type names its entry and key';
+};
+
+subtest 'paths created when the parse settles on them' => sub {
+	my $dir     = tempdir(CLEANUP => 1);
+	my %workDir = ('work-dir' => { type => 'dir', createPathIfMissing => 1, default => "$dir/default" });
+
+	parseWith(['--work-dir', "$dir/given"], options => {%workDir});
+	ok -d "$dir/given",   'the given directory is created';
+	ok !-d "$dir/default", 'the overridden default is not';
+
+	parseWith([], options => {%workDir});
+	ok -d "$dir/default", 'the default is created when it is the effective value';
+
+	parseWith(["$dir/positional/out.txt"], args => [{ short => 'output', type => 'file', createPathIfMissing => 1 }]);
+	ok -f "$dir/positional/out.txt", 'an arg path is created too';
+
+	like dies { parseWith([], options => { 'work-dir' => { type => 'dir', mustExist => 1, createPathIfMissing => 1 } }) },
+		qr/option 'work-dir': mustExist and createPathIfMissing are mutually exclusive/, 'both keys is a spec error';
 };
 
 subtest 'validation failures' => sub {

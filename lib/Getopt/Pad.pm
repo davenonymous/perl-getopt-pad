@@ -182,8 +182,12 @@ option would show nothing and a url option C<[URL]>.
 
 =back
 
-Type-specific keys are accepted alongside: C<mustExist> (file, dir),
-C<min> / C<max> (int, float).
+Type-specific keys are accepted alongside: C<mustExist> and
+C<createPathIfMissing> (file, dir; mutually exclusive), C<min> / C<max>
+(int, float). A path with C<createPathIfMissing> is created, parents
+included and a file empty, once the parse settles on it: a default is
+created only when nothing overrides it, and never by C<--help> or a
+completion request.
 
 =item args => \@args
 
@@ -331,8 +335,8 @@ Types validate and coerce values and annotate the help output.
 	s      string str         plain string
 	i      int integer        integer; min/max
 	f      float num number   number; min/max
-	file                      file path; mustExist
-	dir    directory          directory path; mustExist
+	file                      file path; mustExist, createPathIfMissing
+	dir    directory          directory path; mustExist, createPathIfMissing
 	url    uri                URL of the form scheme://...
 	flag                      plain non-negatable flag (the default)
 
@@ -393,6 +397,14 @@ C<multiple>, C<hash> and C<objectlist> options.
 
 Return the value to store after a successful check. The default returns it
 unchanged. Numeric types use this to turn the string into a number.
+
+=item prepare($value) (method, optional)
+
+Called once per parse with every scalar of the value an option or arg
+settles on, after the checks and coercion, and never with a default the
+command line overrides. Arrange whatever the value needs and return
+C<undef>, or a short problem description B<without> the option name. The
+path types create a missing path here for C<createPathIfMissing>.
 
 =item label (method, optional)
 

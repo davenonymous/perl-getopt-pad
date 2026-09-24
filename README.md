@@ -8,7 +8,8 @@ option and positional argument.
 ## Features
 
 - Typed options (`bool`, `counter`, `string`, `int`, `float`, `file`, `dir`,
-  `url`) with per-type constraints (`mustExist`, `min`/`max`) and a pluggable
+  `url`) with per-type constraints (`mustExist`, `createPathIfMissing`,
+  `min`/`max`) and a pluggable
   type registry
 - Positional arguments with the same type pipeline, including a slurpy last
   argument

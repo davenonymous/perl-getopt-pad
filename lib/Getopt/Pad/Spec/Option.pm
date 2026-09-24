@@ -166,12 +166,29 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		foreach my $source (@valueSources) {
 			my $given = $sources{$source->{key}} // {};
 			next if !exists $given->{$name};
-			return $self->validatedValue($given->{$name}, $source);
+			return $self->preparedValue($self->validatedValue($given->{$name}, $source));
 		}
 
-		return $self->copiedDefault if $hasDefault;
+		return $self->preparedValue($self->copiedDefault) if $hasDefault;
 		Getopt::Pad::Error->throw("missing required option '--%s'", $name) if $required;
 		return $self->emptyValue;
+	}
+
+	# The effective value after the type prepared every scalar in it, e.g.
+	# created a path on demand. Only the value a parse settles on gets
+	# here, never a default the command line overrides.
+	method preparedValue($value) {
+		foreach my $scalar ($self->scalarsOf($value)) {
+			my $problem = $type->prepare($scalar);
+			Getopt::Pad::Error->throw("option '--%s': %s", $name, $problem) if defined $problem;
+		}
+		return $value;
+	}
+
+	method scalarsOf($value) {
+		return map { $self->scalarsOf($_) } $value->@*        if ref $value eq 'ARRAY';
+		return map { $self->scalarsOf($_) } values $value->%* if ref $value eq 'HASH';
+		return ($value);
 	}
 
 	# The value one source gave, in the option's shape, with problems
@@ -288,7 +305,7 @@ Getopt::Pad::Spec::Option - one option spec
 
 =head1 DESCRIPTION
 
-A single validated option spec: primary name, aliases, type instance, reader name, and the required/default/valid/lazyValid/group/help/multiple/hash/csv/objectlist/typehint settings. typeLabel is the tag the help output shows for the option: the typehint, or the type's own label. A default is validated and coerced at construction time, in the option's shape: a list for a multiple option, a mapping for a hash option, a list of mappings for an objectlist option. readerValue resolves the reader value for one parse: it takes the first value source that set the option (command line, then config file) or else the spec default, splits the words and lone config values of a csv option at commas, collects the INDEX.FIELD=VALUE words of an objectlist option into its list of mappings (the indices must form 0..n-1), runs every value through checkValue, the single check/coerce pipeline (a hash option's problems name their key, an objectlist option's their entry and key), and throws a Getopt::Pad::Error worded for that source, or for a missing required option. An option no source set and without a default reads as an empty list (multiple, objectlist), an empty mapping (hash) or undef. validValues lists what the valid constraint allows: the static list, or the array reference the valid coderef returns when called; shell completion asks it for candidates. lazyValid is a predicate run after the valid check. Auto options may carry a trigger, the reaction the parser runs when the parsed command line sets the option.
+A single validated option spec: primary name, aliases, type instance, reader name, and the required/default/valid/lazyValid/group/help/multiple/hash/csv/objectlist/typehint settings. typeLabel is the tag the help output shows for the option: the typehint, or the type's own label. A default is validated and coerced at construction time, in the option's shape: a list for a multiple option, a mapping for a hash option, a list of mappings for an objectlist option. readerValue resolves the reader value for one parse: it takes the first value source that set the option (command line, then config file) or else the spec default, splits the words and lone config values of a csv option at commas, collects the INDEX.FIELD=VALUE words of an objectlist option into its list of mappings (the indices must form 0..n-1), runs every value through checkValue, the single check/coerce pipeline (a hash option's problems name their key, an objectlist option's their entry and key), and throws a Getopt::Pad::Error worded for that source, or for a missing required option. The value a parse settles on, default included, is then handed scalar by scalar to the type's prepare hook, which is how a path is created on demand. An option no source set and without a default reads as an empty list (multiple, objectlist), an empty mapping (hash) or undef. validValues lists what the valid constraint allows: the static list, or the array reference the valid coderef returns when called; shell completion asks it for candidates. lazyValid is a predicate run after the valid check. Auto options may carry a trigger, the reaction the parser runs when the parsed command line sets the option.
 
 Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
 

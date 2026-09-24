@@ -140,8 +140,9 @@ _Avoid_: help object, usage printer
 
 **Type**:
 An Object::Pad class under `Getopt::Pad::Type::` that maps a spec type name
-to a Getopt::Long suffix, validates or coerces values, and contributes help
-annotations. The Type module builds a Type from an Option or Arg spec
+to a Getopt::Long suffix, validates or coerces values, contributes help
+annotations, and may prepare the value a parse settles on (a path created
+on demand). The Type module builds a Type from an Option or Arg spec
 itself, taking the type name and the keys the Type declares (`SPEC_KEYS`)
 out of the spec; Options and Args only name their default type.
 _Avoid_: constraint, validator, kind
