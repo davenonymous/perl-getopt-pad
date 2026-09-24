@@ -7,7 +7,7 @@ class Getopt::Pad::Type::Dir :isa(Getopt::Pad::Type::Path) :strict(params) {
 	use constant NAMES => ['dir', 'directory'];
 	use File::Path ();
 
-	our $VERSION = '0.02';
+	our $VERSION = '0.03';
 
 	method label() { return 'Path' }
 

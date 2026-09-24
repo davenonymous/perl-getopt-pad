@@ -9,7 +9,7 @@ use Object::Pad;
 use Getopt::Pad::Registry;
 use Getopt::Pad::Util qw(specError);
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 my @builtins = map { "Getopt::Pad::Type::$_" } qw(Flag Bool Counter String Int Float File Dir Url);
 my $registry;

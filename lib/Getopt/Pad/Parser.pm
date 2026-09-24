@@ -9,7 +9,7 @@ class Getopt::Pad::Parser :strict(params) {
 	use Feature::Compat::Try;
 	use Scalar::Util ();
 
-	our $VERSION = '0.02';
+	our $VERSION = '0.03';
 
 	field $spec :param;
 	field $argv :param;

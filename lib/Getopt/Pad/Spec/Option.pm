@@ -9,7 +9,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	use Carp qw(croak);
 	use Getopt::Pad::Util qw(camelize specError isValidName);
 
-	our $VERSION = '0.02';
+	our $VERSION = '0.03';
 
 	# The Value sources a parse hands over, in order of precedence, each with
 	# the wording of its user errors; the spec default follows them. The
