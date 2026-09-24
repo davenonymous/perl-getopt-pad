@@ -123,7 +123,7 @@ class Getopt::Pad::Help :strict(params) {
 			my @parts;
 			push @parts, ['[REQ]', $palette{annotation}] if $arg->required;
 			push @parts, [$arg->help, undef] if $arg->help ne '';
-			push @parts, [sprintf('[%s]', $arg->type->label), $palette{typeLabel}] if defined $arg->type->label;
+			push @parts, [sprintf('[%s]', $arg->typeLabel), $palette{typeLabel}] if defined $arg->typeLabel;
 			push @lines, $self->entryLines($self->argLabel($arg), \@parts);
 		}
 		return join("\n", @lines);
@@ -141,7 +141,7 @@ class Getopt::Pad::Help :strict(params) {
 				push @parts, ['[REQ]', $palette{annotation}] if $option->required;
 				push @parts, map { [sprintf('[%s]', $_), $palette{annotation}] } $option->type->constraintNotes;
 				push @parts, [$option->help, undef] if $option->help ne '';
-				push @parts, [sprintf('[%s]', $option->type->label), $palette{typeLabel}] if defined $option->type->label;
+				push @parts, [sprintf('[%s]', $option->typeLabel), $palette{typeLabel}] if defined $option->typeLabel;
 				push @lines, $self->entryLines($self->optionLabel($option), \@parts);
 
 				my $subIndent = ' ' x ($self->labelWidth + 4);

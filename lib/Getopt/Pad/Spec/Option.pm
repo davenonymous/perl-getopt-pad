@@ -43,6 +43,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	field $hash     :reader = 0;
 	field $csv      :reader = 0;
 	field $hidden   :reader = 0;
+	field $typehint :reader;
 
 	ADJUST {
 		specError("option key must be a non-empty string") if !defined $key || $key eq '';
@@ -72,6 +73,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		$hash     = delete $spec{hash} ? 1 : 0;
 		$csv      = delete $spec{csv} ? 1 : 0;
 		$hidden   = delete $spec{hidden} ? 1 : 0;
+		$typehint = delete $spec{typehint};
 
 		specError("option '%s': unknown key(s): %s", $name, join(', ', sort keys %spec)) if %spec;
 		specError("option '%s': required and default are mutually exclusive", $name) if $required && $hasDefault;
@@ -81,6 +83,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		specError("option '%s': csv requires multiple", $name) if $csv && !$multiple;
 		specError("option '%s': valid must be an array or code reference", $name) if defined $valid && ref $valid ne 'ARRAY' && ref $valid ne 'CODE';
 		specError("option '%s': lazyValid must be a code reference", $name) if defined $lazyValid && ref $lazyValid ne 'CODE';
+		specError("option '%s': typehint must be a non-empty string", $name) if defined $typehint && (ref $typehint || $typehint eq '');
 
 		$default = $self->checkedDefault($default) if $hasDefault;
 	}
@@ -119,6 +122,12 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		return [$default->@*] if ref $default eq 'ARRAY';
 		return { $default->%* } if ref $default eq 'HASH';
 		return $default;
+	}
+
+	# The tag the help output renders after the help text: the spec's
+	# typehint, or what the type calls itself.
+	method typeLabel() {
+		return $typehint // $type->label;
 	}
 
 	# The values the valid constraint allows right now: the static list, or
@@ -242,7 +251,7 @@ Getopt::Pad::Spec::Option - one option spec
 
 =head1 DESCRIPTION
 
-A single validated option spec: primary name, aliases, type instance, reader name, and the required/default/valid/lazyValid/group/help/multiple/hash/csv settings. A default is validated and coerced at construction time, in the option's shape: a list for a multiple option, a mapping for a hash option. readerValue resolves the reader value for one parse: it takes the first value source that set the option (command line, then config file) or else the spec default, splits the words and lone config values of a csv option at commas, runs every value through checkValue, the single check/coerce pipeline (a hash option's problems name their key), and throws a Getopt::Pad::Error worded for that source, or for a missing required option. An option no source set and without a default reads as an empty list (multiple), an empty mapping (hash) or undef. validValues lists what the valid constraint allows: the static list, or the array reference the valid coderef returns when called; shell completion asks it for candidates. lazyValid is a predicate run after the valid check. Auto options may carry a trigger, the reaction the parser runs when the parsed command line sets the option.
+A single validated option spec: primary name, aliases, type instance, reader name, and the required/default/valid/lazyValid/group/help/multiple/hash/csv/typehint settings. typeLabel is the tag the help output shows for the option: the typehint, or the type's own label. A default is validated and coerced at construction time, in the option's shape: a list for a multiple option, a mapping for a hash option. readerValue resolves the reader value for one parse: it takes the first value source that set the option (command line, then config file) or else the spec default, splits the words and lone config values of a csv option at commas, runs every value through checkValue, the single check/coerce pipeline (a hash option's problems name their key), and throws a Getopt::Pad::Error worded for that source, or for a missing required option. An option no source set and without a default reads as an empty list (multiple), an empty mapping (hash) or undef. validValues lists what the valid constraint allows: the static list, or the array reference the valid coderef returns when called; shell completion asks it for candidates. lazyValid is a predicate run after the valid check. Auto options may carry a trigger, the reaction the parser runs when the parsed command line sets the option.
 
 Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
 

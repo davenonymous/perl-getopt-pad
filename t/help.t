@@ -20,9 +20,11 @@ my $spec = Getopt::Pad::Spec->new(raw => {
 		'private'   => { type => '!', default => 1, help => 'Create as private', group => 'Target' },
 		'define|D'  => { type => 's', hash => 1, default => { os => 'linux', arch => 'x86' }, help => 'Build variables', group => 'General' },
 		'tag'       => { type => 's', multiple => 1, csv => 1, help => 'Labels to attach', group => 'General' },
+		'host'      => { type => 's', typehint => 'Hostname', help => 'Where to connect', group => 'General' },
 	},
 	args => [
 		{ type => 'url', short => 'source-url', required => 1, help => 'The source address' },
+		{ type => 'url', short => 'mirror', help => 'A second address', typehint => 'Mirror URL' },
 	],
 	description => 'Migrate one Git repository.',
 	examples    => [{ text => 'Basic run', args => '--owner dave x.git' }],
@@ -32,7 +34,7 @@ my $rendered = $spec->helperFor($spec->root, programName => 'migrate', width => 
 
 subtest 'rendered layout' => sub {
 	my @lines = split /\n/, $rendered;
-	is $lines[0], '# migrate [options] source-url', 'header line';
+	is $lines[0], '# migrate [options] source-url [mirror]', 'header line';
 	is $lines[1], '# Migrate one Git repository.',  'description line';
 
 	like $rendered, qr/^## Arguments$/m, 'arguments section';
@@ -46,6 +48,8 @@ subtest 'rendered layout' => sub {
 	like $rendered, qr/^\s+Default = info$/m, 'default subline';
 	like $rendered, qr/^   --define <key=value>\s+Build variables$/m, 'hash option label';
 	like $rendered, qr/^   --tag <a,b,\.\.\.>\s+Labels to attach$/m, 'csv option label';
+	like $rendered, qr/^   --host <>\s+Where to connect \[Hostname\]$/m, 'typehint tags an option without a type label';
+	like $rendered, qr/^   <mirror>\s+A second address \[Mirror URL\]$/m, 'typehint replaces the type label of an arg';
 	like $rendered, qr/^\s+Default = arch=x86, os=linux$/m, 'hash default subline';
 
 	my $generalPos = index($rendered, '## General');
@@ -76,7 +80,7 @@ subtest 'colored output' => sub {
 	my $colored = $spec->helperFor($spec->root, programName => 'migrate', width => 100, color => 1)->renderHelp;
 	my @lines = split /\n/, $colored;
 
-	is $lines[0], "\e[1;31m# migrate [options] source-url\e[0m", 'usage line red including hashtag';
+	is $lines[0], "\e[1;31m# migrate [options] source-url [mirror]\e[0m", 'usage line red including hashtag';
 	is $lines[1], "\e[94m# Migrate one Git repository.\e[0m",    'description blue, not bold';
 	like $colored, qr/^\e\[92m## Arguments\e\[0m$/m,              'section header green including hashtags';
 	like $colored, qr/\e\[31m\[REQ\]\e\[0m/,                     'REQ painted red';

@@ -168,6 +168,10 @@ C<multiple>.
 
 =item * C<hidden> - accept the option but leave it out of the help output.
 
+=item * C<typehint> - the tag shown after the help text instead of the
+type's own, e.g. C<'Hostname'> renders as C<[Hostname]> where a string
+option would show nothing and a url option C<[URL]>.
+
 =back
 
 Type-specific keys are accepted alongside: C<mustExist> (file, dir),
@@ -177,8 +181,8 @@ C<min> / C<max> (int, float).
 
 Positional arguments, consumed in order. Each entry accepts C<short> (the
 name, mandatory, defines the reader), C<type> (default C<string>),
-C<required>, C<help>, and - on the last entry only - C<multiple> to slurp
-all remaining positionals into an arrayref. Required args must precede
+C<required>, C<help>, C<typehint>, and - on the last entry only -
+C<multiple> to slurp all remaining positionals into an arrayref. Required args must precede
 optional ones.
 
 =item commands => \%commands
@@ -384,7 +388,8 @@ unchanged. Numeric types use this to turn the string into a number.
 =item label (method, optional)
 
 A short tag rendered at the end of the help text, e.g. C<URL> renders as
-C<[URL]>. Return C<undef> (the default) for none.
+C<[URL]>. Return C<undef> (the default) for none. An option or arg spec
+overrides it with C<typehint>.
 
 =item constraintNotes (method, optional)
 

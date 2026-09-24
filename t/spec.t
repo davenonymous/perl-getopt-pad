@@ -113,6 +113,12 @@ subtest 'spec errors fail loudly' => sub {
 	like dies { buildSpec(options => { owner => { type => 's', valid => 'nope' } }) },
 		qr/valid must be an array or code reference/, 'invalid valid';
 
+	like dies { buildSpec(options => { owner => { type => 's', typehint => '' } }) },
+		qr/option 'owner': typehint must be a non-empty string/, 'empty typehint';
+
+	like dies { buildSpec(args => [{ short => 'source', typehint => ['x'] }]) },
+		qr/arg 'source': typehint must be a non-empty string/, 'non-string typehint on an arg';
+
 	like dies { buildSpec(typo => 1) },
 		qr/spec: unknown key\(s\): typo/, 'unknown top-level key';
 };
