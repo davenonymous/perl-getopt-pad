@@ -21,6 +21,7 @@ my $spec = Getopt::Pad::Spec->new(raw => {
 		'define|D'  => { type => 's', hash => 1, default => { os => 'linux', arch => 'x86' }, help => 'Build variables', group => 'General' },
 		'tag'       => { type => 's', multiple => 1, csv => 1, help => 'Labels to attach', group => 'General' },
 		'host'      => { type => 's', typehint => 'Hostname', help => 'Where to connect', group => 'General' },
+		'server'    => { type => 's', objectlist => 1, default => [{ host => 'a', port => 80 }, { host => 'b' }], help => 'Upstreams', group => 'General' },
 	},
 	args => [
 		{ type => 'url', short => 'source-url', required => 1, help => 'The source address' },
@@ -49,6 +50,8 @@ subtest 'rendered layout' => sub {
 	like $rendered, qr/^   --define <key=value>\s+Build variables$/m, 'hash option label';
 	like $rendered, qr/^   --tag <a,b,\.\.\.>\s+Labels to attach$/m, 'csv option label';
 	like $rendered, qr/^   --host <>\s+Where to connect \[Hostname\]$/m, 'typehint tags an option without a type label';
+	like $rendered, qr/^   --server <N.key=value>\s+Upstreams$/m, 'objectlist option label';
+	like $rendered, qr/^\s+Default = 0.host=a, 0.port=80, 1.host=b$/m, 'objectlist default subline';
 	like $rendered, qr/^   <mirror>\s+A second address \[Mirror URL\]$/m, 'typehint replaces the type label of an arg';
 	like $rendered, qr/^\s+Default = arch=x86, os=linux$/m, 'hash default subline';
 

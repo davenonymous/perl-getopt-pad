@@ -166,6 +166,14 @@ overwrites its value. Every value passes the type, C<valid> and
 C<lazyValid> checks; a C<default> is a hashref. Mutually exclusive with
 C<multiple>.
 
+=item * C<objectlist> - the option takes C<INDEX.FIELD=VALUE> words
+(C<--server 0.host=a --server 0.port=80 --server 1.host=b>) and the
+reader returns a list of hashrefs (C<[{ host => 'a', port => 80 },
+{ host => 'b' }]>). The indices must form 0..n-1 in any order, a field is
+a word, repeating C<INDEX.FIELD> overwrites. Every value passes the type,
+C<valid> and C<lazyValid> checks; a C<default> is a list of hashrefs.
+Mutually exclusive with C<multiple> and C<hash>.
+
 =item * C<hidden> - accept the option but leave it out of the help output.
 
 =item * C<typehint> - the tag shown after the help text instead of the
@@ -235,7 +243,8 @@ Config values run through the same checks as command line values. A value
 without content (YAML C<~> or an empty entry, JSON C<null>) is an error, as
 is a list or mapping for an option without C<multiple> or C<hash>. A
 C<multiple> option takes a list or a single value (split at commas for a
-C<csv> option; a list is taken as given), a C<hash> option a mapping. Flag and bool options accept only C<true>/C<false>, 1 and 0,
+C<csv> option; a list is taken as given), a C<hash> option a mapping, an
+C<objectlist> option a list of mappings. Flag and bool options accept only C<true>/C<false>, 1 and 0,
 counters only non-negative integers.
 
 A C<--create-default-config PATH> option is added as well: it writes a
@@ -275,9 +284,9 @@ class with one C<:reader> per option and arg, plus:
 =back
 
 An option that was never given (no command line value, no config value, no
-default) reads as undef. A C<multiple> option or slurpy arg always reads as
-an arrayref and a C<hash> option as a hashref, empty when nothing was given,
-so they can be dereferenced without a check.
+default) reads as undef. A C<multiple> or C<objectlist> option or a slurpy
+arg always reads as an arrayref and a C<hash> option as a hashref, empty
+when nothing was given, so they can be dereferenced without a check.
 
 Option and arg names whose reader would collide with something every result
 object already answers to are rejected when the spec is built: its methods
@@ -378,7 +387,7 @@ option or argument the value came from. Runs for command line, config file
 and default values alike. Lists, mappings and null config values are
 rejected or taken apart before C<check> is called, so a value always
 arrives as a single scalar (or a JSON boolean object), also for
-C<multiple> and C<hash> options.
+C<multiple>, C<hash> and C<objectlist> options.
 
 =item coerce($value) (method, optional)
 

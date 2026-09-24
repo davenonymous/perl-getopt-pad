@@ -69,7 +69,22 @@ subtest 'spec errors fail loudly' => sub {
 		qr/option 'tag': csv requires multiple/, 'csv without multiple';
 
 	like dies { buildSpec(options => { define => { type => 's', hash => 1, default => ['a'] } }) },
-		qr/default for a hash option must be a hash reference/, 'list default for a hash option';
+		qr/option 'define': default value: expected a mapping of keys to values/, 'list default for a hash option';
+
+	like dies { buildSpec(options => { verbose => { type => '+', objectlist => 1 } }) },
+		qr/objectlist requires a value-taking type/, 'objectlist on a counter';
+
+	like dies { buildSpec(options => { server => { type => 's', hash => 1, objectlist => 1 } }) },
+		qr/hash and objectlist are mutually exclusive/, 'hash plus objectlist';
+
+	like dies { buildSpec(options => { server => { type => 's', objectlist => 1, default => { host => 'a' } } }) },
+		qr/option 'server': default value: expected a list of mappings/, 'mapping default for an objectlist option';
+
+	like dies { buildSpec(options => { server => { type => 'i', objectlist => 1, default => [{ port => 80 }, 'b'] } }) },
+		qr/option 'server': default value: entry 1: expected a mapping of keys to values/, 'objectlist default entries must be mappings';
+
+	like dies { buildSpec(options => { tag => { type => 's', multiple => 1, default => 'a' } }) },
+		qr/option 'tag': default value: expected a list of values/, 'scalar default for a multiple option';
 
 	like dies { buildSpec(options => { define => { type => 'i', hash => 1, default => { os => 'linux' } } }) },
 		qr/option 'define': default value: key 'os': 'linux' is not an integer/, 'hash default values validated';

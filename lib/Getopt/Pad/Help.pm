@@ -179,8 +179,9 @@ class Getopt::Pad::Help :strict(params) {
 
 	method optionLabel($option) {
 		my $label = sprintf($option->negatable ? '--[no-]%s' : '--%s', $option->name);
-		return $label . ' <key=value>' if $option->hash;
-		return $label . ' <a,b,...>'   if $option->csv;
+		return $label . ' <key=value>'   if $option->hash;
+		return $label . ' <N.key=value>' if $option->objectlist;
+		return $label . ' <a,b,...>'     if $option->csv;
 		return $label . ' <>'          if $option->type->takesValue;
 		return $label;
 	}
@@ -231,9 +232,16 @@ class Getopt::Pad::Help :strict(params) {
 	}
 
 	method stringifyDefault($default) {
-		return join(', ', $default->@*) if ref $default eq 'ARRAY';
+		return $default if !ref $default;
 		return join(', ', map { sprintf('%s=%s', $_, $default->{$_}) } sort keys $default->%*) if ref $default eq 'HASH';
-		return $default;
+		return join(', ', map { $self->stringifyEntry($default->[$_], $_) } 0 .. $#$default);
+	}
+
+	# A list entry: the value itself, or for an objectlist the entry's pairs
+	# prefixed with its index.
+	method stringifyEntry($entry, $index) {
+		return $entry if ref $entry ne 'HASH';
+		return $self->stringifyDefault({ map { (sprintf('%d.%s', $index, $_) => $entry->{$_}) } keys $entry->%* });
 	}
 }
 

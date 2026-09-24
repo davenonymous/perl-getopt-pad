@@ -11,6 +11,9 @@ Revision history for Getopt::Pad
           at commas, the items are trimmed and an empty item is rejected
         - Add typehint to option and arg specs: the tag rendered after
           the help text in place of the type's own label
+        - Add objectlist options: with objectlist => 1 an option takes
+          --name INDEX.FIELD=VALUE words and its reader returns a list of
+          hashrefs. The indices must form 0..n-1
 
 0.02    2026-09-23
         - Fix the release target packing build artefacts (blib/) into the

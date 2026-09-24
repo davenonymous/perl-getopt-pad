@@ -103,6 +103,22 @@ subtest 'hash' => sub {
 		qr/option '--limit': key 'cpu': 'lots' is not an integer/, 'a value failing the type names its key';
 };
 
+subtest 'objectlist' => sub {
+	my %server = (server => { type => 's', objectlist => 1 });
+	my $opt = parseWith(['--server', '1.host=b', '--server', '0.host=a', '--server', '0.port=80', '--server', '0.host=c'], options => {%server});
+	is $opt->server, [{ host => 'c', port => '80' }, { host => 'b' }], 'entries collected by index, repeated field overwrites';
+
+	my $typed = parseWith(['--limit', '0.cpu=2'], options => { limit => { type => 'i', objectlist => 1, default => [{ cpu => 1 }] } });
+	is $typed->limit, [{ cpu => 2 }], 'values pass the type and a given list replaces the default';
+	is parseWith([], options => {%server})->server, [], 'absent objectlist option reads as an empty list';
+
+	like dies { parseWith(['--server', '0.host=a', '--server', '2.host=b'], options => {%server}) }, qr/option '--server': missing index 1/, 'a gap in the indices';
+	like dies { parseWith(['--server', 'host=a'], options => {%server}) },  qr/option '--server': invalid key 'host', expected INDEX.FIELD=VALUE/, 'a key without an index';
+	like dies { parseWith(['--server', '0.a.b=x'], options => {%server}) }, qr/invalid key '0.a.b'/, 'nested fields are rejected';
+	like dies { parseWith(['--limit', '0.cpu=lots'], options => { limit => { type => 'i', objectlist => 1 } }) },
+		qr/option '--limit': entry 0: key 'cpu': 'lots' is not an integer/, 'a value failing the type names its entry and key';
+};
+
 subtest 'validation failures' => sub {
 	like dies { parseWith(['--frobnicate'], options => {}) },
 		qr/Unknown option: frobnicate/, 'unknown option';
