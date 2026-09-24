@@ -65,7 +65,31 @@ subtest 'multiple' => sub {
 	is $opt->tag, ['a', 'b'], 'collected into arrayref';
 
 	my $absent = GetOptions(argv => [], options => { tag => { type => 's', multiple => 1 } });
-	is $absent->tag, undef, 'absent multiple option stays undef';
+	is $absent->tag, [], 'absent multiple option reads as an empty list';
+};
+
+subtest 'hash' => sub {
+	my $opt = GetOptions(
+		argv    => ['--define', 'os=linux', '--define', 'os=bsd', '-D', 'flags=a=b'],
+		options => { 'define|D' => { type => 's', hash => 1 } },
+	);
+	is $opt->define, { os => 'bsd', flags => 'a=b' }, 'key=value pairs merged, last key wins, split at the first =';
+
+	my $typed = GetOptions(
+		argv    => ['--limit', 'cpu=2', '--limit', 'mem=512'],
+		options => { limit => { type => 'i', hash => 1, default => { cpu => 1 } } },
+	);
+	is $typed->limit, { cpu => 2, mem => 512 }, 'values pass the type and a given hash replaces the default';
+
+	my $absent = GetOptions(argv => [], options => { define => { type => 's', hash => 1 } });
+	is $absent->define, {}, 'absent hash option reads as an empty mapping';
+
+	like dies { parseWith(['--define', 'bare'], options => { define => { type => 's', hash => 1 } }) },
+		qr/Option define, key "bare", requires a value/, 'a key without a value';
+	like dies { parseWith(['--define', '=x'], options => { define => { type => 's', hash => 1 } }) },
+		qr/option '--define': empty key/, 'an empty key';
+	like dies { parseWith(['--limit', 'cpu=lots'], options => { limit => { type => 'i', hash => 1 } }) },
+		qr/option '--limit': key 'cpu': 'lots' is not an integer/, 'a value failing the type names its key';
 };
 
 subtest 'validation failures' => sub {

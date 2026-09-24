@@ -59,6 +59,18 @@ subtest 'spec errors fail loudly' => sub {
 	like dies { buildSpec(options => { verbose => { type => '!', multiple => 1 } }) },
 		qr/multiple requires a value-taking type/, 'multiple on a bool';
 
+	like dies { buildSpec(options => { verbose => { type => '!', hash => 1 } }) },
+		qr/hash requires a value-taking type/, 'hash on a bool';
+
+	like dies { buildSpec(options => { define => { type => 's', multiple => 1, hash => 1 } }) },
+		qr/multiple and hash are mutually exclusive/, 'multiple plus hash';
+
+	like dies { buildSpec(options => { define => { type => 's', hash => 1, default => ['a'] } }) },
+		qr/default for a hash option must be a hash reference/, 'list default for a hash option';
+
+	like dies { buildSpec(options => { define => { type => 'i', hash => 1, default => { os => 'linux' } } }) },
+		qr/option 'define': default value: key 'os': 'linux' is not an integer/, 'hash default values validated';
+
 	like dies { buildSpec(options => { help => { type => 's' } }) },
 		qr/reader 'help' collides/, 'reserved reader';
 

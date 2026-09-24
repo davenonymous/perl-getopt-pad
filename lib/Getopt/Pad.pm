@@ -156,6 +156,12 @@ C<valid>.
 
 =item * C<multiple> - the option may be repeated. The reader returns an arrayref.
 
+=item * C<hash> - the option takes C<key=value> pairs (C<--define os=linux
+--define arch=x86>) and the reader returns a hashref. Repeating a key
+overwrites its value. Every value passes the type, C<valid> and
+C<lazyValid> checks; a C<default> is a hashref. Mutually exclusive with
+C<multiple>.
+
 =item * C<hidden> - accept the option but leave it out of the help output.
 
 =back
@@ -219,9 +225,10 @@ containing a mapping of option names to values:
 
 Config values run through the same checks as command line values. A value
 without content (YAML C<~> or an empty entry, JSON C<null>) is an error, as
-is a list or mapping for an option without C<multiple>. A C<multiple>
-option takes a list or a single value. Flag and bool options accept only
-C<true>/C<false>, 1 and 0, counters only non-negative integers.
+is a list or mapping for an option without C<multiple> or C<hash>. A
+C<multiple> option takes a list or a single value, a C<hash> option a
+mapping. Flag and bool options accept only C<true>/C<false>, 1 and 0,
+counters only non-negative integers.
 
 A C<--create-default-config PATH> option is added as well: it writes a
 config file prefilled with the spec's default values to PATH, refusing to
@@ -260,8 +267,9 @@ class with one C<:reader> per option and arg, plus:
 =back
 
 An option that was never given (no command line value, no config value, no
-default) reads as undef. A C<multiple> option or slurpy arg that was given
-reads as an arrayref.
+default) reads as undef. A C<multiple> option or slurpy arg always reads as
+an arrayref and a C<hash> option as a hashref, empty when nothing was given,
+so they can be dereferenced without a check.
 
 Option and arg names whose reader would collide with something every result
 object already answers to are rejected when the spec is built: its methods
@@ -351,7 +359,8 @@ produces a Getopt::Pad error message instead of a Getopt::Long one. The
 built-in Int and Float types work exactly this way. The suffix is the only
 Getopt::Long spelling a type contributes: the base class derives
 C<takesValue> and C<negatable> from it and assembles the full option
-specification in C<glSpec>. Overriding those is rarely useful.
+specification in C<glSpec>, appending C<@> for a C<multiple> and C<%> for
+a C<hash> option. Overriding those is rarely useful.
 
 =item check($value) (method, optional)
 
@@ -359,8 +368,9 @@ Return C<undef> when the value is acceptable, otherwise a short problem
 description B<without> the option name - the caller prefixes it with the
 option or argument the value came from. Runs for command line, config file
 and default values alike. Lists, mappings and null config values are
-rejected before C<check> is called, so a config value always arrives as a
-single scalar (or a JSON boolean object).
+rejected or taken apart before C<check> is called, so a value always
+arrives as a single scalar (or a JSON boolean object), also for
+C<multiple> and C<hash> options.
 
 =item coerce($value) (method, optional)
 

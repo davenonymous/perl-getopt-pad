@@ -116,7 +116,7 @@ class Getopt::Pad::Parser :strict(params) {
 			if ($arg->multiple) {
 				my @rest = splice($words->@*);
 				Getopt::Pad::Error->throw("missing required argument <%s>", $arg->short) if !@rest && $arg->required;
-				$readerValues{$arg->reader} = [map { $self->validatedArgValue($arg, $_) } @rest] if @rest;
+				$readerValues{$arg->reader} = [map { $self->validatedArgValue($arg, $_) } @rest];
 				next;
 			}
 

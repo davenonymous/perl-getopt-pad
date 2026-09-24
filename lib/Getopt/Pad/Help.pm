@@ -179,7 +179,8 @@ class Getopt::Pad::Help :strict(params) {
 
 	method optionLabel($option) {
 		my $label = sprintf($option->negatable ? '--[no-]%s' : '--%s', $option->name);
-		$label .= ' <>' if $option->type->takesValue;
+		return $label . ' <key=value>' if $option->hash;
+		return $label . ' <>'          if $option->type->takesValue;
 		return $label;
 	}
 
@@ -230,6 +231,7 @@ class Getopt::Pad::Help :strict(params) {
 
 	method stringifyDefault($default) {
 		return join(', ', $default->@*) if ref $default eq 'ARRAY';
+		return join(', ', map { sprintf('%s=%s', $_, $default->{$_}) } sort keys $default->%*) if ref $default eq 'HASH';
 		return $default;
 	}
 }

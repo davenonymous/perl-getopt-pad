@@ -38,6 +38,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	field $group    :reader;
 	field $help     :reader = '';
 	field $multiple :reader = 0;
+	field $hash     :reader = 0;
 	field $hidden   :reader = 0;
 
 	ADJUST {
@@ -65,23 +66,54 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		$group    = delete $spec{group} // 'Options';
 		$help     = delete $spec{help} // '';
 		$multiple = delete $spec{multiple} ? 1 : 0;
+		$hash     = delete $spec{hash} ? 1 : 0;
 		$hidden   = delete $spec{hidden} ? 1 : 0;
 
 		specError("option '%s': unknown key(s): %s", $name, join(', ', sort keys %spec)) if %spec;
 		specError("option '%s': required and default are mutually exclusive", $name) if $required && $hasDefault;
 		specError("option '%s': multiple requires a value-taking type, not '%s'", $name, $typeName) if $multiple && !$type->takesValue;
+		specError("option '%s': hash requires a value-taking type, not '%s'", $name, $typeName) if $hash && !$type->takesValue;
+		specError("option '%s': multiple and hash are mutually exclusive", $name) if $multiple && $hash;
 		specError("option '%s': valid must be an array or code reference", $name) if defined $valid && ref $valid ne 'ARRAY' && ref $valid ne 'CODE';
 		specError("option '%s': lazyValid must be a code reference", $name) if defined $lazyValid && ref $lazyValid ne 'CODE';
 
-		if ($hasDefault) {
-			if ($multiple) {
-				specError("option '%s': default for a multiple option must be an array reference", $name) if ref $default ne 'ARRAY';
-				$default = [map { $self->checkedDefault($_) } $default->@*];
-			}
-			else {
-				$default = $self->checkedDefault($default);
-			}
+		$default = $self->checkedDefault($default) if $hasDefault;
+	}
+
+	# The spec default in the option's shape, every value checked and
+	# coerced: a list for a multiple option, a mapping for a hash option.
+	method checkedDefault($value) {
+		if ($multiple) {
+			specError("option '%s': default for a multiple option must be an array reference", $name) if ref $value ne 'ARRAY';
+			return [map { $self->checkedSingleDefault($_) } $value->@*];
 		}
+		if ($hash) {
+			specError("option '%s': default for a hash option must be a hash reference", $name) if ref $value ne 'HASH';
+			specError("option '%s': default value: empty key", $name) if exists $value->{''};
+			return { map { $_ => $self->checkedSingleDefault($value->{$_}, sprintf("key '%s': ", $_)) } keys $value->%* };
+		}
+		return $self->checkedSingleDefault($value);
+	}
+
+	method checkedSingleDefault($value, $where = '') {
+		my ($problem, $coerced) = $self->checkValue($value);
+		specError("option '%s': default value: %s%s", $name, $where, $problem) if defined $problem;
+		return $coerced;
+	}
+
+	# What the reader gets when no value source set the option and the spec
+	# has no default: an empty list or mapping, or undef.
+	method emptyValue() {
+		return [] if $multiple;
+		return {} if $hash;
+		return undef;
+	}
+
+	# Each parse gets its own copy of a list or mapping default.
+	method copiedDefault() {
+		return [$default->@*] if ref $default eq 'ARRAY';
+		return { $default->%* } if ref $default eq 'HASH';
+		return $default;
 	}
 
 	# The values the valid constraint allows right now: the static list, or
@@ -114,12 +146,6 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		return (undef, $value);
 	}
 
-	method checkedDefault($value) {
-		my ($problem, $coerced) = $self->checkValue($value);
-		specError("option '%s': default value: %s", $name, $problem) if defined $problem;
-		return $coerced;
-	}
-
 	# The Reader value for one parse. %sources maps each Value source to the
 	# raw values it gave, keyed by Primary name; a name missing from a map
 	# means that source did not set the option.
@@ -133,12 +159,13 @@ class Getopt::Pad::Spec::Option :strict(params) {
 			return $self->validatedValue($given->{$name}, $source->{problemFormat});
 		}
 
-		return ref $default eq 'ARRAY' ? [$default->@*] : $default if $hasDefault;
+		return $self->copiedDefault if $hasDefault;
 		Getopt::Pad::Error->throw("missing required option '--%s'", $name) if $required;
-		return undef;
+		return $self->emptyValue;
 	}
 
 	method validatedValue($value, $problemFormat) {
+		return $self->validatedHashValue($value, $problemFormat) if $hash;
 		return $self->validatedSingleValue($value, $problemFormat) if !$multiple;
 
 		# A config file may give a lone value for a multiple option.
@@ -146,16 +173,30 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		return [map { $self->validatedSingleValue($_, $problemFormat) } @values];
 	}
 
-	method validatedSingleValue($value, $problemFormat) {
-		Getopt::Pad::Error->throw($problemFormat, $name, 'no value given') if !defined $value;
+	# The command line gives key=value pairs already split into a mapping; a
+	# config file may give any shape. Every value passes the single-value
+	# pipeline, the problem names its key.
+	method validatedHashValue($value, $problemFormat) {
+		Getopt::Pad::Error->throw($problemFormat, $name, 'expected a mapping of keys to values') if ref $value ne 'HASH';
+
+		my %validated;
+		foreach my $key (sort keys $value->%*) {
+			Getopt::Pad::Error->throw($problemFormat, $name, 'empty key') if $key eq '';
+			$validated{$key} = $self->validatedSingleValue($value->{$key}, $problemFormat, sprintf("key '%s': ", $key));
+		}
+		return \%validated;
+	}
+
+	method validatedSingleValue($value, $problemFormat, $where = '') {
+		Getopt::Pad::Error->throw($problemFormat, $name, $where . 'no value given') if !defined $value;
 
 		my ($problem, $coerced) = $self->checkValue($value);
-		Getopt::Pad::Error->throw($problemFormat, $name, $problem) if defined $problem;
+		Getopt::Pad::Error->throw($problemFormat, $name, $where . $problem) if defined $problem;
 		return $coerced;
 	}
 
 	method glSpec() {
-		return $type->glSpec(join('|', $name, @aliases), optionalValue => $optionalValue, multiple => $multiple);
+		return $type->glSpec(join('|', $name, @aliases), optionalValue => $optionalValue, multiple => $multiple, hash => $hash);
 	}
 
 	method negatable() {
@@ -175,7 +216,7 @@ Getopt::Pad::Spec::Option - one option spec
 
 =head1 DESCRIPTION
 
-A single validated option spec: primary name, aliases, type instance, reader name, and the required/default/valid/lazyValid/group/help/multiple settings. A default is validated and coerced at construction time. readerValue resolves the reader value for one parse: it takes the first value source that set the option (command line, then config file) or else the spec default, runs the value through checkValue, the single check/coerce pipeline, and throws a Getopt::Pad::Error worded for that source, or for a missing required option. validValues lists what the valid constraint allows: the static list, or the array reference the valid coderef returns when called; shell completion asks it for candidates. lazyValid is a predicate run after the valid check. Auto options may carry a trigger, the reaction the parser runs when the parsed command line sets the option.
+A single validated option spec: primary name, aliases, type instance, reader name, and the required/default/valid/lazyValid/group/help/multiple/hash settings. A default is validated and coerced at construction time, in the option's shape: a list for a multiple option, a mapping for a hash option. readerValue resolves the reader value for one parse: it takes the first value source that set the option (command line, then config file) or else the spec default, runs every value through checkValue, the single check/coerce pipeline (a hash option's problems name their key), and throws a Getopt::Pad::Error worded for that source, or for a missing required option. An option no source set and without a default reads as an empty list (multiple), an empty mapping (hash) or undef. validValues lists what the valid constraint allows: the static list, or the array reference the valid coderef returns when called; shell completion asks it for candidates. lazyValid is a predicate run after the valid check. Auto options may carry a trigger, the reaction the parser runs when the parsed command line sets the option.
 
 Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
 

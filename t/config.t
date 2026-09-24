@@ -32,6 +32,7 @@ my %options = (
 	'owner'     => { type => 's' },
 	'log-level' => { type => 's', default => 'info', valid => [qw(debug info warn)] },
 	'tag'       => { type => 's', multiple => 1 },
+	'define'    => { type => 'i', hash => 1 },
 );
 
 sub parseWith($argv, %raw) {
@@ -122,6 +123,14 @@ subtest 'config values run the normal pipeline' => sub {
 	my $listTag = writeFile("$dir/list-tag.yaml", "Options:\n  tag:\n    - a\n    - b\n");
 	my $list = parseWith([], options => {%options}, config => { format => 'yaml', paths => [$listTag] });
 	is $list->tag, ['a', 'b'], 'list for a multiple option passes through';
+
+	my $mapping = writeFile("$dir/mapping.yaml", "Options:\n  define:\n    cpu: 2\n    mem: 512\n");
+	my $hash = parseWith([], options => {%options}, config => { format => 'yaml', paths => [$mapping] });
+	is $hash->define, { cpu => 2, mem => 512 }, 'mapping for a hash option passes through';
+
+	my $scalarDefine = writeFile("$dir/scalar-define.yaml", "Options:\n  define: cpu=2\n");
+	like dies { parseWith([], options => {%options}, config => { format => 'yaml', paths => [$scalarDefine] }) },
+		qr/config value for 'define': expected a mapping of keys to values/, 'scalar for a hash option rejected';
 
 	my $notMapping = writeFile("$dir/list.yaml", "- a\n- b\n");
 	like dies { parseWith([], options => {%options}, config => { format => 'yaml', paths => [$notMapping] }) },

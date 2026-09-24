@@ -34,6 +34,21 @@ subtest 'multiple options' => sub {
 
 	push $tag->readerValue()->@*, 'b';
 	is $tag->readerValue(), ['a'], 'each parse gets its own copy of the default';
+	is option('tag', type => 's', multiple => 1)->readerValue(), [], 'absent without a default is an empty list';
+};
+
+subtest 'hash options' => sub {
+	my $define = option('define', type => 'i', hash => 1, default => { a => '1' });
+	is $define->readerValue(commandLine => { define => { b => '2' } }), { b => 2 }, 'the given mapping replaces the default, values coerced';
+	is $define->readerValue(config => { define => { c => '3' } }), { c => 3 }, 'a config mapping passes through';
+
+	$define->readerValue()->{x} = 9;
+	is $define->readerValue(), { a => 1 }, 'each parse gets its own copy of the default';
+	is option('define', type => 's', hash => 1)->readerValue(), {}, 'absent without a default is an empty mapping';
+
+	like dies { $define->readerValue(config => { define => 'a=1' }) }, qr/^config value for 'define': expected a mapping of keys to values/, 'scalar for a hash option';
+	like dies { $define->readerValue(config => { define => { a => undef } }) }, qr/^config value for 'define': key 'a': no value given/, 'null value names its key';
+	like dies { $define->readerValue(config => { define => { '' => 1 } }) }, qr/^config value for 'define': empty key/, 'empty key';
 };
 
 subtest 'config values need the right shape' => sub {
