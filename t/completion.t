@@ -115,10 +115,10 @@ subtest 'GetOptions answers the shell instead of parsing' => sub {
 	local $ENV{GETOPT_PAD_COMPLETE_INDEX} = 1;
 	my $stderrHandle = gensym;
 	my $pid = open3(my $stdinHandle, my $stdoutHandle, $stderrHandle, $^X, "-I$libDir", '-MGetopt::Pad', '-e',
-		'GetOptions(options => { owner => { type => q(s), required => 1, valid => sub { [qw(dave eve)] } } }); print "parsed\n";', '--', '--owner', 'd');
+		'GetOptions(options => { owner => { type => q(s), required => 1, valid => sub { [qw(dave eve)] } } }); print qq(parsed\n);', '--', '--owner', 'd');
 	close $stdinHandle;
 	local $/;
-	my $stdout = readline($stdoutHandle) // '';
+	my $stdout = (readline($stdoutHandle) // '') =~ s/\r\n/\n/gr;    # text-mode STDOUT on Windows
 	waitpid $pid, 0;
 	is $? >> 8, 0, 'exit status 0';
 	is $stdout, "none\ndave\n", 'candidates printed, the required option never checked';

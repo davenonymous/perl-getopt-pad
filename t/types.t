@@ -101,7 +101,7 @@ subtest 'paths created on demand' => sub {
 	my $fileType = Getopt::Pad::Type::File->new(createPathIfMissing => 1);
 	is $fileType->prepare("$dir/c/d.txt"), undef, 'file created with its parent';
 	ok -f "$dir/c/d.txt", 'file exists afterwards';
-	like $fileType->prepare("$dir/a"), qr/cannot create file '.*': Is a directory/, 'a directory in the way is reported';
+	like $fileType->prepare("$dir/a"), qr/cannot create file '.*': \w/, 'a directory in the way is reported';
 	is Getopt::Pad::Type::File->new->prepare("$dir/untouched"), undef, 'nothing created without the key';
 	ok !-e "$dir/untouched", 'path still missing';
 

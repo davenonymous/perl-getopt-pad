@@ -294,10 +294,12 @@ subtest '--create-default-config through other formats and at odd targets' => su
 	ok !-e "$dir/nope.ro", 'and creates no file';
 
 	my $linkPath = "$dir/dangling.json";
-	symlink("$dir/elsewhere.json", $linkPath) or die $!;
-	like dies { parseWith(['--create-default-config', $linkPath], options => {%options}, config => { format => 'json' }) },
-		qr/config file '.*dangling\.json' already exists/, 'a dangling symlink is refused';
-	ok !-e "$dir/elsewhere.json", 'the link target is not created';
+	SKIP: {
+		skip 'this process may not create symlinks', 2 if !symlink("$dir/elsewhere.json", $linkPath);
+		like dies { parseWith(['--create-default-config', $linkPath], options => {%options}, config => { format => 'json' }) },
+			qr/config file '.*dangling\.json' already exists/, 'a dangling symlink is refused';
+		ok !-e "$dir/elsewhere.json", 'the link target is not created';
+	}
 };
 
 subtest 'config files set top-level options only' => sub {
@@ -316,7 +318,9 @@ subtest 'yaml loading never blesses' => sub {
 };
 
 subtest 'a missing YAML::XS is a spec error' => sub {
-	my $code = 'BEGIN { unshift @INC, sub { die "hidden\n" if $_[1] eq "YAML/XS.pm"; return } }'
+	# No double quotes in a -e snippet: Windows passes such an argument
+	# unquoted and the child sees it split at every space.
+	my $code = 'BEGIN { unshift @INC, sub { die qq(hidden\n) if $_[1] eq q(YAML/XS.pm); return } }'
 		. ' use Getopt::Pad; GetOptions(argv => [], options => {}, config => { format => q(yaml) }); print q(unreached);';
 	my $pid = open3(my $stdinHandle, my $outputHandle, undef, $^X, '-I' . File::Spec->rel2abs('lib'), '-e', $code);
 	close $stdinHandle;

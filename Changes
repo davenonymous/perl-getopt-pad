@@ -16,6 +16,10 @@ Revision history for Getopt::Pad
           hashrefs. The indices must form 0..n-1
         - Add createPathIfMissing to the file and dir types: the path is
           created, parents included, once the parse settles on it
+        - --create-default-config writes LF line endings on every platform
+          and refuses a symlink target on Windows as well, where O_EXCL
+          follows a dangling link
+        - Tests pass on Windows
 
 0.02    2026-09-23
         - Fix the release target packing build artefacts (blib/) into the
