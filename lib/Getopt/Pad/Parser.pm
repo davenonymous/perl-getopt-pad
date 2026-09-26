@@ -198,13 +198,74 @@ __END__
 
 =head1 NAME
 
-Getopt::Pad::Parser - the parsing engine
+Getopt::Pad::Parser - Parses a command line against a spec (internal)
 
 =head1 DESCRIPTION
 
-The parsing engine, in two passes. The first walks the command line: it runs Getopt::Long per level, fires the triggers of auto options seen there and selects the named command. An inherited option is accepted on every level below the one declaring it, and Getopt::Long stores its words on top of those given further out, so it accumulates across levels as it would on one. The second pass loads the config values once (an explicit --config, given on any level, replaces the autoload chain), then resolves the selected levels innermost first: every declared option gets its command line values and the config values of its level's section, inherited options the words collected on all levels, the innermost level consumes the positionals, and each level's generated result object holds the one below it. Throws Getopt::Pad::Error for user mistakes; the triggers throw Getopt::Pad::ExitRequest carrying their output. It never exits itself.
+This module is internal to Getopt::Pad. It is not part of the public
+API and can change without notice. Programs use L<Getopt::Pad/GetOptions>;
+this page is for people working on Getopt::Pad itself.
 
-Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
+C<< Getopt::Pad::Parser->new(spec => $spec, argv => \@words)->parse >>
+returns the result object of the top level, or throws. It works in two
+passes.
+
+=head2 First pass: the command line
+
+The command line is read level by level, starting at the top level:
+
+=over 4
+
+=item 1.
+
+L<Getopt::Long> reads the level's options, configured with C<bundling>,
+C<no_ignore_case>, C<no_auto_abbrev>, and C<require_order> on a level
+with commands (so the first non-option word ends the level) or
+C<permute> on a level without commands. Its warnings become the error
+message.
+
+=item 2.
+
+The triggers of the automatic options set on this level run. A trigger
+throws a L<Getopt::Pad::ExitRequest>, which ends the parse before
+anything else is checked.
+
+=item 3.
+
+The values of inherited options are set aside. When the next level is
+read, Getopt::Long stores into a copy of them, so an inherited option
+given on several levels accumulates as if it had been given on one.
+
+=item 4.
+
+On a level with commands, the next word selects the command, and the
+loop continues with that command's level.
+
+=back
+
+=head2 Second pass: the values
+
+The config values are loaded once (an explicit C<--config>, given on any
+level, replaces the autoload chain). Then the selected levels are
+resolved from the innermost to the top level. Each declared option gets
+its value from the command line words of its level and the config values
+of its level's section (see L<Getopt::Pad::Spec::Option>); an inherited
+option gets the words collected on all levels. The innermost level
+consumes the positional words for its args (type check, conversion,
+C<prepare>). Each level's result object, created by
+L<Getopt::Pad::Result::Generator>, holds the result object of the level
+below.
+
+=head2 Errors
+
+User errors are thrown as L<Getopt::Pad::Error> objects. The parser
+attaches the level they happened on, so that C<GetOptions> can print
+that level's help. The parser never prints and never exits; that is left
+to C<GetOptions>.
+
+=head1 SEE ALSO
+
+L<Getopt::Pad::Spec>, L<Getopt::Pad::Config>
 
 =head1 AUTHOR
 

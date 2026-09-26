@@ -16,6 +16,12 @@ Revision history for Getopt::Pad
           of either name when the spec has a config block
         - With a config block, a level with commands may not have a
           group named commands
+        - Rewrite the documentation. Getopt::Pad is a complete reference
+          with a list of all messages. Getopt::Pad::Tutorial and
+          Getopt::Pad::Cookbook are new. The contracts for custom types
+          and config formats are documented in Getopt::Pad::Type and
+          Getopt::Pad::Config::Format
+        - New examples for value shapes, config files and value checks
 
 0.03    2026-09-24
         - Add hash options: with hash => 1 an option takes --name key=value

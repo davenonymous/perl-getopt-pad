@@ -148,13 +148,90 @@ __END__
 
 =head1 NAME
 
-Getopt::Pad::Spec - trusted spec root
+Getopt::Pad::Spec - The checked spec of one GetOptions call (internal)
 
 =head1 DESCRIPTION
 
-The trusted root of a parsed spec: the root Level plus the config block and version string. Owns the single table of auto options (--help, --version, --create-completions, --config, --create-default-config): each entry names its placement and carries the trigger the parser fires when the option is seen. Once the auto options are attached, it passes every option marked inherit down to all levels below the one declaring it (the two config options are marked so), and with a config block it refuses a group named like the config file's reserved C<commands> key on a level with commands. Every trigger ends the parse by throwing a Getopt::Pad::ExitRequest with its finished output, so nothing outside this table knows what each auto option does. helperFor is the one place Help renderers are constructed.
+This module is internal to Getopt::Pad. It is not part of the public
+API and can change without notice. Programs use L<Getopt::Pad/GetOptions>;
+this page is for people working on Getopt::Pad itself.
 
-Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
+Getopt::Pad::Spec turns the arguments of C<GetOptions> into a tree of
+checked objects before any command line is looked at. Everything after
+its construction works with these objects, never with the raw hashes.
+
+Constructing a spec (C<< Getopt::Pad::Spec->new(raw => \%spec) >>):
+
+=over 4
+
+=item 1.
+
+takes the C<config> key out and builds a L<Getopt::Pad::Spec::Config>
+from it, and takes the C<version> key out;
+
+=item 2.
+
+builds the top level as a L<Getopt::Pad::Spec::Level>, which builds its
+options, args and commands recursively;
+
+=item 3.
+
+attaches the automatic options: C<--help> to every level,
+C<--version> and C<--create-completions> to the top level, and with a
+config block C<--config> and C<--create-default-config> to the top level,
+marked as inherited;
+
+=item 4.
+
+passes every inherited option down to all levels below the level that
+declares it;
+
+=item 5.
+
+with a config block, refuses a group named C<commands> on a level with
+commands, because config files use that key for the command sections.
+
+=back
+
+This module owns the one table of automatic options. Each entry names
+where the option is attached, its option spec, and its trigger: the code
+the parser runs when the command line sets the option. Every trigger ends
+the parse by throwing a L<Getopt::Pad::ExitRequest> that carries the
+finished output, so no other module needs to know what an automatic
+option does. C<--config> has no trigger; the parser uses its value to load
+config files.
+
+=head1 METHODS
+
+=over 4
+
+=item root
+
+The top level, a L<Getopt::Pad::Spec::Level>.
+
+=item config
+
+The L<Getopt::Pad::Spec::Config>, or C<undef> without a config block.
+
+=item version
+
+The C<version> key of the spec, or C<undef>.
+
+=item helperFor($level, %overrides)
+
+A L<Getopt::Pad::Help> for C<$level>. The only place help renderers are
+created. C<%overrides> are passed to its constructor, for example
+C<< handle => \*STDERR >>.
+
+=item CONFIG_OPTION
+
+The name of the automatic C<--config> option.
+
+=back
+
+=head1 SEE ALSO
+
+L<Getopt::Pad::Spec::Level>, L<Getopt::Pad::Parser>
 
 =head1 AUTHOR
 

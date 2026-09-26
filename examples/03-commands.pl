@@ -27,7 +27,7 @@ use ResultDump;
 
 my $opt = GetOptions(
 	options => {
-		'verbose' => { type => '!', inherit => 1, help => 'Print more information' },
+		'verbose' => { type => 'bool', inherit => 1, help => 'Print more information' },
 	},
 	commands => {
 		'document' => {
@@ -39,7 +39,7 @@ my $opt = GetOptions(
 				'create' => {
 					description => 'Create a new document',
 					options     => {
-						'format' => { type => 's', valid => [qw(pdf docx)], help => 'Target document type' },
+						'format' => { type => 'string', valid => [qw(pdf docx)], help => 'Target document type' },
 					},
 					args => [
 						{ short => 'title', required => 1, help => 'Title of the new document' },
@@ -56,8 +56,8 @@ my $opt = GetOptions(
 				'resize' => {
 					description => 'Resize an image',
 					options     => {
-						'width'  => { type => 'i', min => 1, help => 'Target width in pixels' },
-						'height' => { type => 'i', min => 1, help => 'Target height in pixels' },
+						'width'  => { type => 'int', min => 1, help => 'Target width in pixels' },
+						'height' => { type => 'int', min => 1, help => 'Target height in pixels' },
 					},
 				},
 			},

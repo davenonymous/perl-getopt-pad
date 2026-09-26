@@ -167,13 +167,61 @@ __END__
 
 =head1 NAME
 
-Getopt::Pad::Config - grouped config file reader and writer
+Getopt::Pad::Config - Reads and writes config files (internal)
 
 =head1 DESCRIPTION
 
-The one owner of the grouped config file structure: a section per level holding its groups (group, then option name, then value), and on a level with commands a C<commands> key holding one such section per command name, nesting as deep as the commands do. It loads a file named by an explicit --config (falling back to the defaultPath) or merges the autoload chain (later paths override earlier ones option by option, on every level), validates every section while collecting the option values per level path - unknown commands, unknown options, options in the wrong group and non-mappings are errors naming the file and the command, whether this run selects that command or not - and writes the default config file for --create-default-config with the defaults of every level. It also owns the files themselves: every config file is read and written here as UTF-8, and the Format only translates between that text and the data structure. The default config file is created exclusively (O_EXCL), so an existing file or a symlink at the target is refused without a check-then-create gap (a symlink is also refused explicitly, since Windows follows a dangling one even with O_EXCL), and written with LF line endings on every platform. A parse error is reported without the Perl source location the parser appended. Handed out by the config block via its io reader.
+This module is internal to Getopt::Pad. It is not part of the public
+API and can change without notice. Programs use L<Getopt::Pad/GetOptions>;
+this page is for people working on Getopt::Pad itself.
 
-Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
+The only module that knows the layout of config files (described for
+users in L<Getopt::Pad/File layout>): a section per level, holding its
+groups (group, then option name, then value), and on a level with
+commands a C<commands> key holding one such section per command, as deep
+as the commands are nested.
+
+It is created by L<Getopt::Pad::Spec::Config> and handed out through its
+C<io> reader.
+
+=head2 Loading
+
+C<explicitValues($root, $path)> loads the file given with C<--config>
+(or C<defaultPath> for a bare C<--config>). C<autoloadValues($root)>
+loads every existing file in C<paths>, a later file overriding an earlier
+one option by option on every level. Both return the raw option values
+per level, keyed by command path (the top level's is the empty string),
+each a hashref of primary names to values.
+
+Every section of every loaded file is checked, whether the command line
+selects its level or not: unknown commands, unknown options, options
+under the wrong group and sections that are not mappings are thrown as
+L<Getopt::Pad::Error> naming the file and the command. The values
+themselves are checked later, by the option specs of the selected levels.
+
+A format's parse error is reported without the Perl source location the
+parser appended to it.
+
+=head2 Writing
+
+C<writeDefaultFile($root, $path)> writes the defaults of every level in
+the same layout, leaving out groups and command sections without
+defaults. The text is produced before the file is created, so a failing
+C<dump> leaves no file behind. The file is created exclusively
+(C<O_EXCL>): an existing file or a symbolic link at the target is refused
+without a gap between check and creation. Symbolic links are also refused
+explicitly, because Windows follows a dangling one even with C<O_EXCL>.
+The file is written with LF line endings on every platform.
+
+=head2 Encoding
+
+Every config file is read and written as UTF-8 here. A format
+(L<Getopt::Pad::Config::Format>) only translates between that text and
+the data structure.
+
+=head1 SEE ALSO
+
+L<Getopt::Pad::Spec::Config>, L<Getopt::Pad::Config::Format>
 
 =head1 AUTHOR
 
