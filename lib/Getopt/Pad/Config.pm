@@ -8,7 +8,7 @@ class Getopt::Pad::Config :strict(params) {
 	use Feature::Compat::Try;
 	use Getopt::Pad::Util qw(expandTilde);
 
-	our $VERSION = '0.03';
+	our $VERSION = '0.04';
 
 	field $format      :param;
 	field $formatName  :param;

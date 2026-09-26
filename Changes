@@ -1,6 +1,6 @@
 Revision history for Getopt::Pad
 
-0.04    (unreleased)
+0.04    2026-09-26
         - Config files set the options of every command level: the
           commands key of a level's section holds one section per
           command, nested like the commands. Every section is validated
