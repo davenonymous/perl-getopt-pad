@@ -4,8 +4,13 @@
 # the command, and every level yields its own result object reachable via
 # ->subcommand. The dump below shows the chain with indentation.
 #
+# --verbose is inherited: it is accepted after the command words as well,
+# and read from the top level. 03-commands.json next to this script sets
+# options of the nested commands in its "commands" sections.
+#
 # Try:
 #   perl examples/03-commands.pl document create --format pdf "My Doc"
+#   perl examples/03-commands.pl image resize --verbose
 #   perl examples/03-commands.pl image resize --width 640 --height 480
 #   perl examples/03-commands.pl document create --help
 #   perl examples/03-commands.pl frobnicate
@@ -22,7 +27,7 @@ use ResultDump;
 
 my $opt = GetOptions(
 	options => {
-		'verbose' => { type => '!', help => 'Print more information' },
+		'verbose' => { type => '!', inherit => 1, help => 'Print more information' },
 	},
 	commands => {
 		'document' => {
@@ -58,6 +63,7 @@ my $opt = GetOptions(
 			},
 		},
 	},
+	config      => { format => 'json', paths => ["$FindBin::Bin/03-commands.json"] },
 	description => 'Demonstrate nested subcommands.',
 );
 

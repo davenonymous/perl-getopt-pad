@@ -13,6 +13,7 @@ class Getopt::Pad::Spec::Level :strict(params) {
 	field $path :param :reader = '';
 
 	field @options;
+	field @inheritedOptions;
 	field %optionByName;
 	field %takenNames;
 	field @args;
@@ -55,6 +56,9 @@ class Getopt::Pad::Spec::Level :strict(params) {
 
 		specError("%sargs and commands are mutually exclusive on one level", $where) if @args && %commands;
 
+		my @inheritable = grep { $_->inherit } @options;
+		specError("%soption '%s': inherit requires commands on the same level", $where, $inheritable[0]->name) if @inheritable && !%commands;
+
 		if (exists $spec{commandRequired}) {
 			specError("%scommandRequired without commands", $where) if !%commands;
 			$commandRequired = delete $spec{commandRequired} ? 1 : 0;
@@ -89,17 +93,41 @@ class Getopt::Pad::Spec::Level :strict(params) {
 			specError("%soption '%s': name '%s' is already used by %s", $self->where, $name, $candidate, $owner);
 		}
 
-		$takenNames{$name} = sprintf("option '%s'", $name);
-		$takenNames{$_} = sprintf("an alias of option '%s'", $name) foreach $option->aliases;
+		$self->takeNames($option);
 		push @options, $option;
 		$optionByName{$name} = $option;
 		return $self;
 	}
 
-	method isRoot()          { return $path eq '' ? 1 : 0 }
-	method where()           { return $self->isRoot ? '' : sprintf("command '%s': ", $path) }
-	method options()         { return @options }
-	method declaredOptions() { return grep { !$_->auto } @options }
+	# An option an outer Level passes on: accepted on this Level's command
+	# line, but neither configurable nor readable here.
+	method inheritOption($option, $fromLevel) {
+		my $name = $option->name;
+		foreach my $candidate ($name, $option->aliases) {
+			my $owner = $takenNames{$candidate} // next;
+			specError("%soption '%s' collides with the automatic --%s option", $self->where, $candidate, $candidate) if $option->auto;
+			specError("%soption '%s' inherited from %s: name '%s' is already used by %s", $self->where, $name, $fromLevel->label, $candidate, $owner);
+		}
+
+		$self->takeNames($option);
+		push @inheritedOptions, $option;
+		return $self;
+	}
+
+	method takeNames($option) {
+		my $name = $option->name;
+		$takenNames{$name} = sprintf("option '%s'", $name);
+		$takenNames{$_} = sprintf("an alias of option '%s'", $name) foreach $option->aliases;
+		return;
+	}
+
+	method isRoot()             { return $path eq '' ? 1 : 0 }
+	method label()              { return $self->isRoot ? 'the top level' : sprintf("command '%s'", $path) }
+	method where()              { return $self->isRoot ? '' : $self->label . ': ' }
+	method options()            { return (@options, @inheritedOptions) }
+	method declaredOptions()    { return grep { !$_->auto } @options }
+	method inheritableOptions() { return grep { $_->inherit } @options }
+	method inheritedOptions()   { return @inheritedOptions }
 	method args()            { return @args }
 	method examples()        { return @examples }
 	method hasArgs()         { return @args ? 1 : 0 }
@@ -122,7 +150,7 @@ Getopt::Pad::Spec::Level - one spec level
 
 =head1 DESCRIPTION
 
-One level of a spec: its options plus either positional args or subcommands. Enforces name and alias uniqueness across all options of the level, reader uniqueness, arg ordering, and the args/commands exclusivity. options returns every option including the auto options; declaredOptions only those the spec declares.
+One level of a spec: its options plus either positional args or subcommands. Enforces name and alias uniqueness across all options of the level, the options it inherits included, reader uniqueness, arg ordering, the args/commands exclusivity, and that only a level with commands marks options inherit. options returns every option the level's command line accepts: its own, auto options included, and those inherited from outer levels. declaredOptions returns only the own options the spec declares, inheritableOptions the own options passed on to the levels below, inheritedOptions those received from above, and optionByName looks up own options only.
 
 Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
 

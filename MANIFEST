@@ -1,6 +1,7 @@
 Changes
 examples/01-basic.pl
 examples/02-types.pl
+examples/03-commands.json
 examples/03-commands.pl
 examples/04-custom-type.pl
 examples/05-custom-format.pl

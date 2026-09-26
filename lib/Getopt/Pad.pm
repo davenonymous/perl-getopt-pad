@@ -176,6 +176,16 @@ Mutually exclusive with C<multiple> and C<hash>.
 
 =item * C<hidden> - accept the option but leave it out of the help output.
 
+=item * C<inherit> - on a level with commands only: the option is also
+accepted after the command word, on every level below
+(C<tool scan --color never> as well as C<tool --color never scan>). Its
+value is read from the result of the level declaring it and set in that
+level's config groups. Given on several levels, it combines as if repeated
+on one: a single value is overwritten, a C<multiple> option collects, a
+C<hash> option merges, a counter adds up. The levels below list it in
+their help and complete it, and none of them may declare an option or
+alias of the same name.
+
 =item * C<typehint> - the tag shown after the help text instead of the
 type's own, e.g. C<'Hostname'> renders as C<[Hostname]> where a string
 option would show nothing and a url option C<[URL]>.
@@ -202,8 +212,10 @@ optional ones.
 Nested subcommands: each value is a hashref with the same keys as the
 top-level spec (except C<config>, C<version> and C<argv>). The first bare
 word on the command line selects a command. Options before it belong to the
-outer level, everything after it to the inner level. A level may declare
-C<args> or C<commands>, never both.
+outer level, everything after it to the inner level, except that the inner
+level also accepts the options an outer level marks C<inherit>. A level may
+declare C<args> or C<commands>, never both. A config file sets the options
+of a command in that command's section, see C<config> below.
 
 When a level has commands, naming one is mandatory unless the level sets
 C<commandRequired =E<gt> 0>. The result's C<command> and C<subcommand>
@@ -226,9 +238,12 @@ C<format> (mandatory, C<yaml> or C<json>, see L</EXTENDING>), C<paths>
 (arrayref, loaded in order when C<autoload> is on - later files override
 earlier ones), C<defaultPath> (loaded by a bare C<--config>), C<autoload>
 (default 1). An explicit C<--config PATH> replaces the autoload chain.
-Precedence is always: command line over config file over spec default.
-Config files can only set top-level options. A subcommand's options cannot
-come from a config file. C<~> in paths expands to C<$HOME>.
+Precedence is always: command line over config file over spec default, on
+every level. C<~> in paths expands to C<$HOME>. C<--config> and
+C<--create-default-config> belong to the top level and are inherited (see
+C<inherit> above), so C<tool scan --config x.yaml> works as well as
+C<tool --config x.yaml scan>, and no level may declare an option of either
+name.
 
 A bare C<--config> takes the next word as its path unless that word starts
 with a dash, so it also swallows a following positional or command name.
@@ -236,12 +251,35 @@ Write C<--config=> to load C<defaultPath> in that position.
 
 Config files are structured by group: each top-level key is a group name
 (as used in the option specs, with ungrouped options under C<Options>)
-containing a mapping of option names to values:
+containing a mapping of option names to values. On a level with commands,
+the key C<commands> holds one section per command name instead, each
+structured the same way, down to any depth:
 
 	Target:
 	  owner: dave
 	Options:
 	  log-level: debug
+	commands:
+	  document:
+	    Options:
+	      path: ~/notes.txt
+	    commands:
+	      create:
+	        Options:
+	          format: pdf
+
+With a config block, a level with commands therefore cannot have a group
+named C<commands>; a level without commands can. An inherited option is
+set in the groups of the level declaring it, not in the sections below.
+The autoload chain is merged option by option on every level: a later file
+overrides only the options it sets.
+
+Every section is checked on every run, whichever command runs: an unknown
+command, an unknown option, an option under the wrong group or a section
+that is not a mapping is an error naming the file and the command. The
+values themselves are checked only for the levels the command line
+selects, so a C<mustExist> path in another command's section fails only
+when that command runs, and C<createPathIfMissing> creates nothing for it.
 
 Config values run through the same checks as command line values. A value
 without content (YAML C<~> or an empty entry, JSON C<null>) is an error, as
@@ -252,8 +290,9 @@ C<objectlist> option a list of mappings. Flag and bool options accept only C<tru
 counters only non-negative integers.
 
 A C<--create-default-config PATH> option is added as well: it writes a
-config file prefilled with the spec's default values to PATH, refusing to
-overwrite an existing file, and exits 0.
+config file prefilled with the spec's default values of every level to
+PATH, leaving out groups and command sections without defaults, refusing
+to overwrite an existing file, and exits 0.
 
 =item version => $string
 
@@ -473,7 +512,8 @@ C<Getopt::Pad::Config::Format::registerFormat($class)>. It provides a
 C<NAMES> constant (like types, and with the same rule that a name held by
 another format cannot be taken over) and one method: C<parse($text)>, which
 turns the file's contents into a hashref of group names, each holding a
-hashref of option names to values. Getopt::Pad reads and writes the files
+hashref of option names to values, next to the C<commands> key and its
+command sections. Getopt::Pad reads and writes the files
 itself as UTF-8: C<parse> receives the decoded text as a Perl character
 string and never opens a file, and encoding is not the format's concern.
 On parse problems it should simply C<die>. The message is reported to the

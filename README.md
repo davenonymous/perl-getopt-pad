@@ -16,10 +16,12 @@ option and positional argument.
   records (`objectlist`), with defaults and config values in the same shape
 - Positional arguments with the same type pipeline, including a slurpy last
   argument
-- Nested subcommands with per-level options and chained result objects
+- Nested subcommands with per-level options and chained result objects;
+  options marked `inherit` are also accepted after the command word
 - Config files (YAML, JSON, pluggable formats) with command line > config >
-  default precedence, an automatic `--config` option, and
-  `--create-default-config` to write a starter config from the spec defaults
+  default precedence on every command level, an automatic `--config`
+  option, and `--create-default-config` to write a starter config from the
+  spec defaults
 - Generated `--help` output: grouped options, annotations, `typehint` tags, examples,
   terminal-width wrapping, color on a tty. An automatic `--version` comes
   with it
@@ -113,6 +115,25 @@ my $opt = GetOptions(
 # argv: --verbose document create --format pdf "My Doc"
 $opt->command;                          # 'document'
 $opt->subcommand->subcommand->format;   # 'pdf'
+```
+
+An option marked `inherit => 1` on a level with commands is also accepted
+after the command word, on every level below, and read from the level
+declaring it: with `verbose => { type => '!', inherit => 1 }` above,
+`document create --verbose "My Doc"` sets `$opt->verbose`.
+
+Config files set the options of a command in its section under the
+`commands` key, nested like the commands themselves:
+
+```yaml
+Options:
+  verbose: true
+commands:
+  document:
+    commands:
+      create:
+        Options:
+          format: pdf
 ```
 
 ## Shell completion

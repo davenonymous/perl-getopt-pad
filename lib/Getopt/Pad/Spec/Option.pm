@@ -44,6 +44,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	field $csv        :reader = 0;
 	field $objectlist :reader = 0;
 	field $hidden     :reader = 0;
+	field $inherit    :reader = 0;
 	field $typehint   :reader;
 
 	ADJUST {
@@ -75,6 +76,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		$csv        = delete $spec{csv} ? 1 : 0;
 		$objectlist = delete $spec{objectlist} ? 1 : 0;
 		$hidden     = delete $spec{hidden} ? 1 : 0;
+		$inherit    = delete $spec{inherit} ? 1 : 0;
 		$typehint   = delete $spec{typehint};
 
 		specError("option '%s': unknown key(s): %s", $name, join(', ', sort keys %spec)) if %spec;
@@ -305,7 +307,7 @@ Getopt::Pad::Spec::Option - one option spec
 
 =head1 DESCRIPTION
 
-A single validated option spec: primary name, aliases, type instance, reader name, and the required/default/valid/lazyValid/group/help/multiple/hash/csv/objectlist/typehint settings. typeLabel is the tag the help output shows for the option: the typehint, or the type's own label. A default is validated and coerced at construction time, in the option's shape: a list for a multiple option, a mapping for a hash option, a list of mappings for an objectlist option. readerValue resolves the reader value for one parse: it takes the first value source that set the option (command line, then config file) or else the spec default, splits the words and lone config values of a csv option at commas, collects the INDEX.FIELD=VALUE words of an objectlist option into its list of mappings (the indices must form 0..n-1), runs every value through checkValue, the single check/coerce pipeline (a hash option's problems name their key, an objectlist option's their entry and key), and throws a Getopt::Pad::Error worded for that source, or for a missing required option. The value a parse settles on, default included, is then handed scalar by scalar to the type's prepare hook, which is how a path is created on demand. An option no source set and without a default reads as an empty list (multiple, objectlist), an empty mapping (hash) or undef. validValues lists what the valid constraint allows: the static list, or the array reference the valid coderef returns when called; shell completion asks it for candidates. lazyValid is a predicate run after the valid check. Auto options may carry a trigger, the reaction the parser runs when the parsed command line sets the option.
+A single validated option spec: primary name, aliases, type instance, reader name, and the required/default/valid/lazyValid/group/help/multiple/hash/csv/objectlist/inherit/typehint settings. An option marked inherit is accepted on every level below the one declaring it; its value belongs to the declaring level. typeLabel is the tag the help output shows for the option: the typehint, or the type's own label. A default is validated and coerced at construction time, in the option's shape: a list for a multiple option, a mapping for a hash option, a list of mappings for an objectlist option. readerValue resolves the reader value for one parse: it takes the first value source that set the option (command line, then config file) or else the spec default, splits the words and lone config values of a csv option at commas, collects the INDEX.FIELD=VALUE words of an objectlist option into its list of mappings (the indices must form 0..n-1), runs every value through checkValue, the single check/coerce pipeline (a hash option's problems name their key, an objectlist option's their entry and key), and throws a Getopt::Pad::Error worded for that source, or for a missing required option. The value a parse settles on, default included, is then handed scalar by scalar to the type's prepare hook, which is how a path is created on demand. An option no source set and without a default reads as an empty list (multiple, objectlist), an empty mapping (hash) or undef. validValues lists what the valid constraint allows: the static list, or the array reference the valid coderef returns when called; shell completion asks it for candidates. lazyValid is a predicate run after the valid check. Auto options may carry a trigger, the reaction the parser runs when the parsed command line sets the option.
 
 Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
 

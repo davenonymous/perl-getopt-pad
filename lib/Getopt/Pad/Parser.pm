@@ -14,14 +14,30 @@ class Getopt::Pad::Parser :strict(params) {
 	field $spec :param;
 	field $argv :param;
 
+	# The command line is parsed Level by Level first, and the Levels it
+	# selects are resolved afterwards, innermost first, since each Result
+	# holds the one below it. Every Trigger has fired before anything is
+	# resolved, so --help anywhere on the line wins over a missing required
+	# option or a broken config file.
 	method parse() {
-		my @words = $argv->@*;
-		return $self->parseLevel($spec->root, \@words);
+		my @words           = $argv->@*;
+		my @steps           = $self->parseCommandLine(\@words);
+		my $inheritedValues = $steps[-1]{inheritedValues};
+		my $configValues    = $self->inContext($spec->root, sub { $self->loadConfigValues($inheritedValues) });
+
+		my $result;
+		foreach my $step (reverse @steps) {
+			my $subResult = $result;
+			$result = $self->inContext($step->{level}, sub { $self->resolveStep($step, $inheritedValues, $configValues, \@words, $subResult) });
+		}
+		return $result;
 	}
 
-	method parseLevel($level, $words) {
+	# User errors raised by $code are attributed to $level, whose help the
+	# user sees next to the message.
+	method inContext($level, $code) {
 		try {
-			return $self->parseLevelInner($level, $words);
+			return $code->();
 		}
 		catch ($error) {
 			$error->attachContext($level) if Scalar::Util::blessed($error) && $error->isa('Getopt::Pad::Error');
@@ -29,53 +45,67 @@ class Getopt::Pad::Parser :strict(params) {
 		}
 	}
 
-	method parseLevelInner($level, $words) {
-		my %values = $self->parseOptions($level, $words);
-
-		# A Trigger sees its option's value after the Value pipeline, so an
-		# unsupported --create-completions shell is a user error, not a crash.
-		my $helper = $spec->helperFor($level);
-		foreach my $option (grep { defined $_->trigger && exists $values{$_->name} } $level->options) {
-			$option->trigger->($helper, $spec, $level, $option->readerValue(commandLine => \%values));
+	# One step per selected Level: its own command line values, the values
+	# of every inherited option given so far, and the command it names.
+	method parseCommandLine($words) {
+		my @steps;
+		my $level           = $spec->root;
+		my $inheritedValues = {};
+		while (defined $level) {
+			my $step = $self->inContext($level, sub { $self->parseLevel($level, $words, $inheritedValues) });
+			push @steps, $step;
+			$inheritedValues = $step->{inheritedValues};
+			$level           = defined $step->{command} ? $level->command($step->{command}) : undef;
 		}
-
-		# Descend before resolving this Level's values, so a nested Trigger
-		# such as --help is never blocked by an outer required option.
-		my ($commandName, $subResult) = $level->hasCommands ? $self->descendCommand($level, $words) : ();
-
-		my %configValues = $level->isRoot ? $self->loadConfigValues($level, \%values) : ();
-
-		my %readerValues;
-		$readerValues{$_->reader} = $_->readerValue(commandLine => \%values, config => \%configValues) foreach $level->declaredOptions;
-
-		my $class = Getopt::Pad::Result::Generator::generate($level);
-		return $class->new(%readerValues, command => $commandName, subcommand => $subResult, helper => $helper) if $level->hasCommands;
-		return $class->new(%readerValues, $self->consumeArgs($level, $words), helper => $helper);
+		return @steps;
 	}
 
-	method descendCommand($level, $words) {
+	method parseLevel($level, $words, $inheritedSoFar) {
+		my %values = $self->parseOptions($level, $words, $inheritedSoFar);
+		$self->fireTriggers($level, \%values);
+
+		# Inherited options leave the Level's own values: they carry on to
+		# the next Level and end up with the Level declaring them.
+		my %inheritedValues = map { $_->name => delete $values{$_->name} } grep { exists $values{$_->name} } $level->inheritableOptions, $level->inheritedOptions;
+		my $command         = $level->hasCommands ? $self->selectCommand($level, $words) : undef;
+		return { level => $level, values => \%values, inheritedValues => \%inheritedValues, command => $command };
+	}
+
+	# A Trigger sees its option's value after the Value pipeline, so an
+	# unsupported --create-completions shell is a user error, not a crash.
+	# The values inherited from an outer Level never hold the option of a
+	# Trigger: every Trigger ends the parse where it fires.
+	method fireTriggers($level, $values) {
+		my $helper = $spec->helperFor($level);
+		foreach my $option (grep { defined $_->trigger && exists $values->{$_->name} } $level->options) {
+			$option->trigger->($helper, $spec, $level, $option->readerValue(commandLine => $values));
+		}
+		return;
+	}
+
+	method selectCommand($level, $words) {
 		my $expected = join(', ', $level->commandNames);
 
 		if (!$words->@*) {
-			return (undef, undef) if !$level->commandRequired;
+			return undef if !$level->commandRequired;
 			Getopt::Pad::Error->throw("missing command, expected one of: %s", $expected);
 		}
 
-		my $word     = shift $words->@*;
-		my $subLevel = $level->command($word);
-		Getopt::Pad::Error->throw("unknown command '%s', expected one of: %s", $word, $expected) if !defined $subLevel;
-
-		my $subResult = $self->parseLevel($subLevel, $words);
-		return ($word, $subResult);
+		my $word = shift $words->@*;
+		Getopt::Pad::Error->throw("unknown command '%s', expected one of: %s", $word, $expected) if !defined $level->command($word);
+		return $word;
 	}
 
-	method parseOptions($level, $words) {
+	# Getopt::Long stores into a copy of the inherited values given so far,
+	# so an inherited option repeated across Levels accumulates exactly as
+	# it does when repeated on one.
+	method parseOptions($level, $words, $inheritedSoFar) {
 		my @glSpecs = map { $_->glSpec } $level->options;
 		my @config  = qw(bundling no_ignore_case no_auto_abbrev);
 		push @config, $level->hasCommands ? 'require_order' : 'permute';
 
 		my $gl = Getopt::Long::Parser->new(config => \@config);
-		my %values;
+		my %values = map { $_ => $self->copiedWords($inheritedSoFar->{$_}) } keys $inheritedSoFar->%*;
 		my @glWarnings;
 		my $ok;
 		{
@@ -91,13 +121,35 @@ class Getopt::Pad::Parser :strict(params) {
 		return %values;
 	}
 
-	method loadConfigValues($level, $values) {
-		my $configSpec = $spec->config;
-		return () if !defined $configSpec;
+	method copiedWords($given) {
+		return [$given->@*] if ref $given eq 'ARRAY';
+		return { $given->%* } if ref $given eq 'HASH';
+		return $given;
+	}
+
+	method loadConfigValues($inheritedValues) {
+		my $configSpec = $spec->config // return {};
 
 		my $configOption = $spec->CONFIG_OPTION;
-		return $configSpec->io->autoloadValues($level)->%* if !exists $values->{$configOption};
-		return $configSpec->io->explicitValues($level, $values->{$configOption})->%*;
+		return $configSpec->io->autoloadValues($spec->root) if !exists $inheritedValues->{$configOption};
+		return $configSpec->io->explicitValues($spec->root, $inheritedValues->{$configOption});
+	}
+
+	# The Result of one selected Level. Its inherited options take the words
+	# collected on every Level down from it, its options the config values
+	# of its own section.
+	method resolveStep($step, $inheritedValues, $configValues, $words, $subResult) {
+		my $level       = $step->{level};
+		my %commandLine = ($step->{values}->%*, map { $_->name => $inheritedValues->{$_->name} } grep { exists $inheritedValues->{$_->name} } $level->inheritableOptions);
+		my $config      = $configValues->{$level->path} // {};
+
+		my %readerValues;
+		$readerValues{$_->reader} = $_->readerValue(commandLine => \%commandLine, config => $config) foreach $level->declaredOptions;
+
+		my $class  = Getopt::Pad::Result::Generator::generate($level);
+		my $helper = $spec->helperFor($level);
+		return $class->new(%readerValues, command => $step->{command}, subcommand => $subResult, helper => $helper) if $level->hasCommands;
+		return $class->new(%readerValues, $self->consumeArgs($level, $words), helper => $helper);
 	}
 
 	method validatedArgValue($arg, $value) {
@@ -150,7 +202,7 @@ Getopt::Pad::Parser - the parsing engine
 
 =head1 DESCRIPTION
 
-The parsing engine: runs Getopt::Long per level, fires the triggers of auto options seen on the command line, descends into subcommands before resolving a level's values, loads the config values for the root level, hands every declared option its command line and config values to resolve, consumes positionals, and builds the generated result objects. Throws Getopt::Pad::Error for user mistakes; the triggers throw Getopt::Pad::ExitRequest carrying their output. It never exits itself.
+The parsing engine, in two passes. The first walks the command line: it runs Getopt::Long per level, fires the triggers of auto options seen there and selects the named command. An inherited option is accepted on every level below the one declaring it, and Getopt::Long stores its words on top of those given further out, so it accumulates across levels as it would on one. The second pass loads the config values once (an explicit --config, given on any level, replaces the autoload chain), then resolves the selected levels innermost first: every declared option gets its command line values and the config values of its level's section, inherited options the words collected on all levels, the innermost level consumes the positionals, and each level's generated result object holds the one below it. Throws Getopt::Pad::Error for user mistakes; the triggers throw Getopt::Pad::ExitRequest carrying their output. It never exits itself.
 
 Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
 

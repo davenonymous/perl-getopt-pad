@@ -4,6 +4,7 @@ use Object::Pad;
 use Getopt::Pad::Spec::Level;
 use Getopt::Pad::Spec::Option;
 use Getopt::Pad::Spec::Config;
+use Getopt::Pad::Config;
 use Getopt::Pad::ExitRequest;
 use Getopt::Pad::Help;
 use Getopt::Pad::Completion;
@@ -20,7 +21,8 @@ class Getopt::Pad::Spec :strict(params) {
 	# the Trigger the parser fires when the parsed command line sets it.
 	# Every Trigger ends the parse with an ExitRequest carrying its finished
 	# output. CONFIG_OPTION carries no Trigger; the parser consumes it for
-	# config loading.
+	# config loading. The config options act on the whole config file, so
+	# every Level below the root inherits them.
 	my @autoOptions = (
 		{
 			key       => 'help',
@@ -60,17 +62,17 @@ class Getopt::Pad::Spec :strict(params) {
 			raw           => sub ($config) {
 				my $help = sprintf('Load options from this %s config file', $config->formatName);
 				$help .= sprintf(' (bare --config loads %s)', $config->defaultPath) if defined $config->defaultPath;
-				return { type => 's', group => 'Config', help => $help };
+				return { type => 's', group => 'Config', help => $help, inherit => 1 };
 			},
 		},
 		{
 			key       => 'create-default-config',
 			placement => 'config',
 			raw       => sub ($config) {
-				return { type => 's', group => 'Config', help => 'Write a config file prefilled with the default values to this path and exit' };
+				return { type => 's', group => 'Config', help => 'Write a config file prefilled with the default values to this path and exit', inherit => 1 };
 			},
 			trigger   => sub ($helper, $spec, $level, $value) {
-				die Getopt::Pad::ExitRequest->new(output => sprintf("Wrote default config to %s\n", $spec->config->io->writeDefaultFile($level, $value)));
+				die Getopt::Pad::ExitRequest->new(output => sprintf("Wrote default config to %s\n", $spec->config->io->writeDefaultFile($spec->root, $value)));
 			},
 		},
 	);
@@ -91,6 +93,8 @@ class Getopt::Pad::Spec :strict(params) {
 
 		$root = Getopt::Pad::Spec::Level->new(raw => \%spec);
 		$self->attachAutoOptions($root, 1);
+		$self->passInheritedOptions($root);
+		$self->checkCommandsKeyIsFree($root) if defined $config;
 	}
 
 	method attachAutoOptions($level, $isRoot) {
@@ -110,6 +114,27 @@ class Getopt::Pad::Spec :strict(params) {
 		$self->attachAutoOptions($level->command($_), 0) foreach $level->commandNames;
 	}
 
+	# Every Level below hands on what it received plus its own inheritable
+	# options, each paired with the Level declaring it.
+	method passInheritedOptions($level, @received) {
+		my @passed = (@received, map { [$_, $level] } $level->inheritableOptions);
+		foreach my $name ($level->commandNames) {
+			my $command = $level->command($name);
+			$command->inheritOption($_->@*) foreach @passed;
+			$self->passInheritedOptions($command, @passed);
+		}
+	}
+
+	# A config file holds the command sections of a Level with commands
+	# under the COMMANDS_KEY, so no group of such a Level may take its name.
+	method checkCommandsKeyIsFree($level) {
+		return if !$level->hasCommands;
+
+		my $key = Getopt::Pad::Config->COMMANDS_KEY;
+		specError("%sgroup '%s' is reserved for the command sections of config files", $level->where, $key) if grep { $_->group eq $key } $level->declaredOptions;
+		$self->checkCommandsKeyIsFree($level->command($_)) foreach $level->commandNames;
+	}
+
 	method helperFor($level, %overrides) {
 		return Getopt::Pad::Help->new(level => $level, version => $version, %overrides);
 	}
@@ -127,7 +152,7 @@ Getopt::Pad::Spec - trusted spec root
 
 =head1 DESCRIPTION
 
-The trusted root of a parsed spec: the root Level plus the config block and version string. Owns the single table of auto options (--help, --version, --create-completions, --config, --create-default-config): each entry names its placement and carries the trigger the parser fires when the option is seen. Every trigger ends the parse by throwing a Getopt::Pad::ExitRequest with its finished output, so nothing outside this table knows what each auto option does. helperFor is the one place Help renderers are constructed.
+The trusted root of a parsed spec: the root Level plus the config block and version string. Owns the single table of auto options (--help, --version, --create-completions, --config, --create-default-config): each entry names its placement and carries the trigger the parser fires when the option is seen. Once the auto options are attached, it passes every option marked inherit down to all levels below the one declaring it (the two config options are marked so), and with a config block it refuses a group named like the config file's reserved C<commands> key on a level with commands. Every trigger ends the parse by throwing a Getopt::Pad::ExitRequest with its finished output, so nothing outside this table knows what each auto option does. helperFor is the one place Help renderers are constructed.
 
 Part of the L<Getopt::Pad> distribution; see its documentation for the user-facing API.
 

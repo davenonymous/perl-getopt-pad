@@ -51,8 +51,8 @@ _Avoid_: category, section
 **Auto option**:
 An Option added by Getopt::Pad itself rather than declared in the spec.
 `--help` is attached to every Level; `--version` and `--create-completions`
-only to the root; `--config` and `--create-default-config` only to the root
-and only when the Spec has a config block. Auto options have no Reader; a
+only to the root; `--config` and `--create-default-config` to the root
+only when the Spec has a config block, as Inherited options. Auto options have no Reader; a
 Trigger receives its Option's value after the Value pipeline, `--config` is
 consumed by config loading.
 _Avoid_: builtin option, implicit option
@@ -61,6 +61,14 @@ _Avoid_: builtin option, implicit option
 An Option the spec declares under `options`, as opposed to an Auto option.
 Only Declared options get Readers and take part in the value pipeline.
 _Avoid_: user option, real option
+
+**Inherited option**:
+An Option a Level with Commands marks `inherit`, and the config Auto
+options: accepted on the command line of every Level below as well, where
+no Option may reuse its names. It still belongs to the declaring Level:
+read from that Level's Result, set in that Level's groups of a config file.
+Given on several Levels, its words accumulate as if given on one.
+_Avoid_: global option, shared option, propagated option
 
 **Trigger**:
 The reaction an Auto option carries: it runs when the parsed command line sets
@@ -79,9 +87,17 @@ _Avoid_: config spec, config object
 
 **Config I/O**:
 The single owner of the grouped config file structure (group, then option
-name, then value): loads an explicit path or the autoload chain, enforces
-group membership, and writes the default config file.
+name, then value, with the Command sections under the `commands` key):
+loads an explicit path or the autoload chain, validates every section,
+merges per Level, and writes the default config file for all Levels.
 _Avoid_: config loader, config manager
+
+**Command section**:
+The part of a config file that sets one Command's Options: an entry under
+the `commands` key of its parent Level's section, structured like the file
+itself. Every Command section is validated on every run; only the Levels
+the command line selects check and prepare its values.
+_Avoid_: subcommand config, nested config
 
 ### Result side
 
