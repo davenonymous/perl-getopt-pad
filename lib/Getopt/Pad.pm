@@ -2710,7 +2710,7 @@ in the order of the spec.
 
 =head1 REQUIREMENTS
 
-Perl 5.26 or later, L<Object::Pad> 0.800 or later, L<Getopt::Long> 2.50
+Perl 5.26 or later, L<Object::Pad> 0.818 or later, L<Getopt::Long> 2.50
 or later, L<Feature::Compat::Try> and L<JSON::PP>.
 
 Optional: L<YAML::XS> for YAML config files, and L<Term::ReadKey> for
