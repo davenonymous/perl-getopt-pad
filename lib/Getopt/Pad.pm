@@ -17,7 +17,7 @@ use Getopt::Pad::Completion;
 use Getopt::Pad::Error;
 use Getopt::Pad::ExitRequest;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 our @EXPORT  = qw(GetOptions);
 
 sub GetOptions(%raw) {

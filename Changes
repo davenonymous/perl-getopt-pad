@@ -1,6 +1,6 @@
 Revision history for Getopt::Pad
 
-0.05    (unreleased)
+0.05    2026-10-05
         - Require Object::Pad 0.818: class methods with a signature fail
           on older versions (GitHub issue #1)
 
