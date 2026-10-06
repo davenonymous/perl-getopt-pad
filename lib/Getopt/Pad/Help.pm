@@ -150,7 +150,7 @@ class Getopt::Pad::Help :strict(params) {
 					if ref $option->valid eq 'ARRAY';
 				# An undefined default is the same as none to the reader of the help.
 				push @lines, $subIndent . $self->paint('Default', $palette{subKey})
-					. ' = ' . $self->paint($self->stringifyDefault($option->default), $palette{defaultValue})
+					. ' = ' . $self->paint($self->stringifyDefault($option->presentedDefault), $palette{defaultValue})
 					if $option->hasDefault && defined $option->default;
 			}
 			push @blocks, join("\n", @lines);

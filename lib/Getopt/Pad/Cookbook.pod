@@ -315,39 +315,6 @@ that is finally used. If a later option or arg turns out to be invalid,
 the directory may already exist. For a C<file> option, an empty file and
 its parent directories are created. Nothing is created for C<--help>.
 
-=head2 Turning a value into an object (processValue)
-
-C<processValue> replaces each value with what its coderef returns. It is
-called with the result object and the checked value:
-
-=for highlighter language=perl
-
-    use Mojo::File qw(path);
-
-    options => {
-        root => {
-            type         => 'dir',
-            default      => '.',
-            processValue => sub { my ($opt, $value) = @_; return path($value) },
-        },
-        output => {
-            type         => 'string',
-            default      => 'report.txt',
-            processValue => sub { my ($opt, $value) = @_; return path($opt->root, $value) },
-        },
-    },
-
-=for highlighter language=plain
-
-    $ tool --root /srv/site     # $opt->root is path('/srv/site'),
-                                # $opt->output is path('/srv/site/report.txt')
-
-C<$opt> holds the values before any C<processValue> ran, so
-C<< $opt->root >> is the string C<'/srv/site'> inside the callbacks. For
-C<multiple>, C<hash> and C<objectlist> options the coderef is called
-once per value. Args take C<processValue> too. An option that is not
-set anywhere and has no default is not processed.
-
 =head1 OPTIONS WITH SEVERAL VALUES
 
 =head2 Repeating an option (multiple)
@@ -451,6 +418,171 @@ fields share the option's type, C<valid> list and C<lazyValid> check, and
 these see only the value, not the field name. Check fields that need
 rules of their own (for example, that C<port> is a number) in your
 program after C<GetOptions> returns.
+
+=head1 DATES, DURATIONS AND CONVERSIONS
+
+The C<date> and C<duration> types need the module
+L<DateTime::Format::Natural>, which is not installed together with
+Getopt::Pad.
+
+=head2 A date in plain words (date)
+
+=for highlighter language=perl
+
+    options => {
+        since => {
+            type    => 'date',
+            default => '7 days ago',
+            help    => 'Report changes since this date',
+        },
+    },
+
+    # after GetOptions:
+    printf "Changes since %s\n", $opt->since->ymd;
+
+=for highlighter language=plain
+
+    $ tool --since 2026-10-01       # $opt->since is 2026-10-01T00:00:00
+    $ tool --since yesterday        # midnight at the start of yesterday
+    $ tool --since 'last monday'
+    $ tool --since soon
+    ERROR: option '--since': 'soon' is not a date
+
+The reader returns a L<DateTime> object in the local time zone. Values
+with spaces must be quoted for the shell. Relative values such as
+C<3 days ago> are resolved against the current time; for the default,
+that is when C<GetOptions> runs. The help output shows the default as
+written (C<Default = 7 days ago>), not as the date it resolved to.
+
+Numeric dates such as C<10/06/2026> are read as day/month/year. The ISO
+8601 form C<2026-10-06> cannot be misread. The expressions the parser
+understands are listed in L<DateTime::Format::Natural::Lang::EN>.
+
+=head2 A length of time (duration)
+
+=for highlighter language=perl
+
+    use DateTime;
+
+    options => {
+        'keep-for' => {
+            type    => 'duration',
+            default => '30 days',
+            help    => 'How long to keep old backups',
+        },
+    },
+
+    # after GetOptions:
+    my $cutoff = DateTime->now->subtract_duration($opt->keepFor);
+
+=for highlighter language=plain
+
+    $ tool --keep-for '2 weeks'     # $opt->keepFor->in_units('days') is 14
+    $ tool --keep-for 'for 3 hours' # $opt->keepFor->in_units('minutes') is 180
+    $ tool --keep-for 1h
+    ERROR: option '--keep-for': '1h' is not a duration
+
+A duration is one number and one unit, written out: C<90 seconds>,
+C<2 weeks>, C<1 month>. A leading C<for> is allowed. Abbreviations such
+as C<1h> and combinations such as C<1 hour 30 minutes> are rejected;
+write C<90 minutes> instead.
+
+The reader returns a L<DateTime::Duration> object, which keeps months,
+days and minutes apart: C<2 weeks> is 14 days and 0 minutes, and its
+C<in_units('seconds')> is 0. Use it with L<DateTime> arithmetic, as
+above, or convert it as shown in
+L</"A duration in seconds (duration and processValue)">.
+
+=head2 Dates in a fixed time zone (timezone)
+
+=for highlighter language=perl
+
+    options => {
+        at => { type => 'date', timezone => 'UTC', help => 'When to run, in UTC' },
+    },
+
+=for highlighter language=plain
+
+    $ tool --at '2026-10-06 14:00'  # $opt->at is 2026-10-06T14:00:00 in UTC
+
+Without C<timezone>, values are parsed and returned in the system's time
+zone (C<local>). If the system's time zone cannot be determined, for
+example in a minimal container, they are C<floating>: a date and time
+without a zone. Set C<timezone> when the program must not depend on the
+machine it runs on. The name must be one L<DateTime::TimeZone> knows,
+such as C<UTC> or C<Europe/Berlin>; an unknown name is a spec error.
+
+C<duration> options accept the key as well. It makes a difference only
+when a length spans a daylight saving change.
+
+=head2 Turning a value into an object (processValue)
+
+C<processValue> replaces each value with what its coderef returns. The
+coderef is called with the result object and the checked value:
+
+=for highlighter language=perl
+
+    use Mojo::File qw(path);
+
+    options => {
+        root => {
+            type         => 'dir',
+            default      => '.',
+            processValue => sub { my ($opt, $value) = @_; return path($value) },
+        },
+        output => {
+            type         => 'string',
+            default      => 'report.txt',
+            processValue => sub { my ($opt, $value) = @_; return path($opt->root, $value) },
+        },
+    },
+
+=for highlighter language=plain
+
+    $ tool --root /srv/site     # $opt->root is path('/srv/site'),
+                                # $opt->output is path('/srv/site/report.txt')
+
+Inside the callbacks, C<$opt> holds the values before any
+C<processValue> ran: C<< $opt->root >> is the string C<'/srv/site'>, not
+the object. So one option can build on another, and the order in which
+the callbacks run does not matter.
+
+For C<multiple>, C<hash> and C<objectlist> options, the coderef is
+called once per value, and the reader returns the list or mapping of
+the results. Args accept C<processValue> as well. An option that is not
+set anywhere and has no default is not processed.
+
+=head2 A duration in seconds (duration and processValue)
+
+Many APIs expect a timeout as a number of seconds. C<processValue> can
+convert the duration once, so the rest of the program never sees the
+object:
+
+=for highlighter language=perl
+
+    use DateTime;
+
+    options => {
+        timeout => {
+            type         => 'duration',
+            default      => '90 seconds',
+            processValue => sub {
+                my ($opt, $duration) = @_;
+                my $now = DateTime->now;
+                return $now->clone->add_duration($duration)->subtract_datetime_absolute($now)->seconds;
+            },
+        },
+    },
+
+=for highlighter language=plain
+
+    $ tool                          # $opt->timeout is 90
+    $ tool --timeout '2 hours'      # $opt->timeout is 7200
+    $ tool --timeout '1 day'        # $opt->timeout is 86400
+
+Adding the duration to the current time converts months and days with
+the real calendar: C<1 month> is 28 to 31 days, depending on the current
+month. The help output still shows C<Default = 90 seconds>.
 
 =head1 POSITIONAL ARGUMENTS
 

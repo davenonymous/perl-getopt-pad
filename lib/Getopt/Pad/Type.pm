@@ -11,7 +11,7 @@ use Getopt::Pad::Util qw(specError);
 
 our $VERSION = '0.05';
 
-my @builtins = map { "Getopt::Pad::Type::$_" } qw(Flag Bool Counter String Int Float File Dir Url);
+my @builtins = map { "Getopt::Pad::Type::$_" } qw(Flag Bool Counter String Int Float File Dir Url Date Duration);
 my $registry;
 
 sub registry() {
@@ -83,6 +83,12 @@ class Getopt::Pad::Type :abstract {
 
 	method label() {
 		return undef;
+	}
+
+	# Whether help output and config files show a value as the spec wrote
+	# it rather than coerced, for Types that coerce text into objects.
+	method presentsAsGiven() {
+		return 0;
 	}
 
 	method constraintNotes() {
@@ -299,7 +305,7 @@ numeric types use it to turn strings into numbers.
 
 The C<valid> list and the C<lazyValid> check of an option see the
 converted value. The C<Default> line of the help output shows the
-converted default, too.
+converted default, too, unless L</presentsAsGiven> is true.
 
 =head2 prepare
 
@@ -388,6 +394,18 @@ that are present and returns C<undef> when they are acceptable, otherwise
 a short description of the problem without the option name. The problem
 becomes a spec error: C<Getopt::Pad spec: option 'timeout': maxSeconds
 must be a whole number, not '1h' at ...>. The default accepts everything.
+
+=head2 presentsAsGiven
+
+=for highlighter language=perl
+
+    method presentsAsGiven() { return 1 }
+
+Optional. Whether the help output and C<--create-default-config> show a
+default as the spec wrote it instead of converted. Return true when
+L</coerce> turns text into objects, which neither the help output nor a
+config file can show. The C<date> and C<duration> types return true.
+The default is false.
 
 =head2 Methods you do not need to write
 
@@ -612,6 +630,12 @@ provides C<mustExist> and C<createPathIfMissing>.
 =item L<Getopt::Pad::Type::Url>
 
 C<url>, C<uri>.
+
+=item L<Getopt::Pad::Type::Date>, L<Getopt::Pad::Type::Duration>
+
+C<date> and C<duration>, both subclasses of
+L<Getopt::Pad::Type::Temporal>, which provides C<timezone> and needs
+L<DateTime::Format::Natural>.
 
 =back
 

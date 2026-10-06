@@ -5,6 +5,11 @@ Revision history for Getopt::Pad
           with the level's result object and each value it was set to,
           whose return value replaces it, e.g. to wrap a path in an
           object
+        - Add the date and duration types: natural language parsed by
+          DateTime::Format::Natural (now a recommended module) into
+          DateTime and DateTime::Duration objects, in the zone of the
+          new timezone key (default: local)
+        - New example for the date and duration types
 
 0.05    2026-10-05
         - Require Object::Pad 0.818: class methods with a signature fail

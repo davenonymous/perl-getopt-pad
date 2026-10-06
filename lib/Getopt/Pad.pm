@@ -373,7 +373,7 @@ L</description>, L</examples>, L</config>, L</version> and L</argv>.
     hidden               boolean                false
     valid                arrayref or coderef    none       allowed values
     lazyValid            coderef                none       custom check
-    processValue         coderef                none       replaces each value
+    processValue         coderef                none       converts each value
     multiple             boolean                false      value-taking types only
     csv                  boolean                false      requires multiple
     hash                 boolean                false      value-taking types only
@@ -383,6 +383,7 @@ L</description>, L</examples>, L</config>, L</version> and L</argv>.
     min, max             number                 none       int and float only
     mustExist            boolean                false      file and dir only
     createPathIfMissing  boolean                false      file and dir only
+    timezone             time zone name         'local'    date and duration only
 
 See L</OPTION SPECS>. C<multiple>, C<hash> and C<objectlist> exclude each
 other. C<mustExist> and C<createPathIfMissing> exclude each other.
@@ -399,10 +400,11 @@ other. C<mustExist> and C<createPathIfMissing> exclude each other.
     multiple             boolean    false      last arg only, takes the rest
     help                 string     ''
     typehint             string     type's     label shown in the help
-    processValue         coderef    none       replaces each value
+    processValue         coderef    none       converts each value
     min, max             number     none       int and float only
     mustExist            boolean    false      file and dir only
     createPathIfMissing  boolean    false      file and dir only
+    timezone             zone name  'local'    date and duration only
 
 See L</ARG SPECS>.
 
@@ -435,6 +437,8 @@ See L</CONFIG FILES>.
     file                         --name PATH          the path
     dir, directory               --name PATH          the path
     url, uri                     --name URL           the URL
+    date                         --name tomorrow      DateTime object
+    duration                     --name '2 days'      DateTime::Duration object
 
 See L</TYPES>.
 
@@ -813,35 +817,43 @@ method returns the message.
 
 =for highlighter language=perl
 
-    processValue => sub { my ($opt, $value) = @_; return Mojo::File->new($value) },
+    processValue => sub {
+        my ($opt, $value) = @_;
+        return Mojo::File->new($value);
+    },
 
-Your own code that turns a value into what the reader returns, for
-example an object. It is allowed on options and args (see
-L</ARG SPECS>). The coderef is called with the result object of the
-option's level and one value, and its return value replaces the value.
-It runs after all of the level's options and args passed their checks
-(see L</How values are checked>), for the value that is finally used,
-whether it comes from the command line, a config file or the
-L</default>. For options with several values, it is called once per
-value: per list item for L</multiple>, per mapping value for L</hash>
-and per field value for L</objectlist>; the list or mapping around them
-stays; a L<multiple arg|/ARG SPECS> is processed per word. An option
-that is not set anywhere and has no default, and an optional arg that is
-not given, are not processed and read as usual (see
-L</Values by option kind>).
+A coderef that converts a value into what the reader returns, for
+example an object. It is accepted on options and on args (see
+L</ARG SPECS>).
 
-C<$opt> shows the checked values of every option and arg of the level
-before any C<processValue> ran, so the order of the callbacks does not
-matter. Its L<Getopt::Pad::Result/subcommand> is already processed, but
-it cannot see the options of the levels above, including the
-L</inherit> options declared there. C<$opt> is not the object
-C<GetOptions> returns: that one is created after all callbacks ran and
-holds the processed values.
+The coderef is called with two arguments: the result object of the
+level the option belongs to, and one value. Its return value replaces
+that value. For options with several values, it is called once for each
+list item (L</multiple>), each mapping value (L</hash>) or each field
+value (L</objectlist>), and the list or mapping itself is kept. For a
+multiple arg, it is called once per word.
 
-The help output, shell completion and C<--create-default-config> show
-the values as they were before processing. Exceptions thrown by the
-coderef are not caught (see L</Spec errors>); to reject a value with a
-user error, use L</lazyValid> or a custom type.
+It runs once all options and args of the level have passed their checks
+(see L</How values are checked>), and only for the value that is finally
+used, whether that comes from the command line, a config file or the
+L</default>. An option that is not set anywhere and has no default is
+not processed, and neither is an optional arg that is not given; they
+read as described in L</Values by option kind>.
+
+C<$opt> holds the checked values of every option and arg of the level
+before any C<processValue> ran, so the order in which the callbacks run
+does not matter. Its L<Getopt::Pad::Result/subcommand> is already
+processed. It gives no access to the levels above, including the
+L</inherit> options declared there. C<GetOptions> returns a different
+result object, created after all callbacks ran, which holds the
+processed values; do not keep C<$opt> beyond the callback.
+
+C<processValue> does not affect the help output, shell completion or
+C<--create-default-config>, which work with the values before
+processing. Exceptions thrown by the coderef are not caught (see
+L</Spec errors>). To reject a value with a user error, use
+L</lazyValid> or a custom type. L<Getopt::Pad::Cookbook> has recipes
+that wrap paths in objects and convert a L</duration> to seconds.
 
 =head2 multiple
 
@@ -1036,6 +1048,15 @@ user error (C<cannot create directory 'PATH': REASON>).
 
 C<mustExist> and C<createPathIfMissing> exclude each other.
 
+=item timezone
+
+For C<date> and C<duration>. The time zone in which values are parsed
+and returned, as a name that L<DateTime::TimeZone> knows, such as
+C<UTC>, C<Europe/Berlin> or C<floating>. The default, C<local>, is the
+system's time zone; when the system's time zone cannot be determined,
+C<local> falls back to C<floating>, a date and time without a zone. An
+unknown name is a spec error.
+
 =back
 
 =head1 ARG SPECS
@@ -1092,8 +1113,8 @@ Replaces the type label in the help output, see L</typehint>.
 
 =item processValue
 
-Replaces each value with what the coderef returns for it, see
-L</processValue>.
+A coderef that converts the value, as for options (see
+L</processValue>). For a multiple arg, it is called once per word.
 
 =back
 
@@ -1199,6 +1220,53 @@ A URL of the form C<scheme://rest>: a scheme that starts with a letter
 least one character, without whitespace. C<https://example.com/x> and
 C<file:///tmp/x> are accepted; C<example.com> and C<mailto:me@example.com>
 are not. The help output labels the option C<[URL]>.
+
+=head2 date
+
+Names: C<date>. Keys: L</timezone>.
+
+A date and time in natural language, such as C<tomorrow 3pm>,
+C<last monday>, C<3 days ago> or C<2026-10-06 14:00>. The value is
+parsed by L<DateTime::Format::Natural>, which is not installed together
+with Getopt::Pad; a spec that uses C<date> without it is a spec error.
+L<DateTime::Format::Natural::Lang::EN> lists the expressions it
+understands. Numeric dates such as C<10/06/2026> are read as
+day/month/year; the ISO 8601 form C<2026-10-06> cannot be misread.
+
+The reader returns a L<DateTime> object in the option's L</timezone>. A
+value that cannot be parsed is the user error C<'VALUE' is not a date>.
+The help output labels the option C<[Date]>.
+
+Relative values are resolved against the current time when the value is
+checked: during the parse for the command line and config files, and
+when C<GetOptions> builds the spec for a L</default>. The help output
+and C<--create-default-config> show a default as the spec wrote it
+(C<yesterday>), not as the date it resolved to. A L</valid> list is
+compared with the date's string form, such as C<2026-10-06T14:00:00>.
+
+=head2 duration
+
+Names: C<duration>. Keys: L</timezone>.
+
+A length of time: one number and one unit, written out, with an
+optional leading C<for>, such as C<90 seconds>, C<2 weeks>, C<1 month> or
+C<for 3 hours>. Abbreviations such as C<1h> and combinations such as
+C<1 hour 30 minutes> are not accepted. Like C<date>, the value is parsed
+by L<DateTime::Format::Natural> and needs that module.
+
+The reader returns a L<DateTime::Duration> object. A value that cannot
+be parsed is the user error C<'VALUE' is not a duration>. The help output
+labels the option C<[Duration]>, and the help output and
+C<--create-default-config> show a default as the spec wrote it.
+
+A L<DateTime::Duration> keeps months, days and minutes apart, as calendar
+arithmetic requires: C<2 weeks> is 14 days, and its
+C<in_units('seconds')> is 0. Add it to a L<DateTime> to find a point in
+time, or convert it with L</processValue> as shown in
+L<Getopt::Pad::Cookbook/"A duration in seconds (duration and processValue)">.
+The length is measured from the current time in the option's
+L</timezone>, which makes a difference only when it spans a daylight
+saving change.
 
 =head2 Custom types
 
@@ -2037,7 +2105,9 @@ name.
     objectlist option                  arrayref of hashrefs   []
     optional arg                       the value              undef
 
-Numbers from C<int> and C<float> options are returned as numbers. For an
+Numbers from C<int> and C<float> options are returned as numbers, and
+C<date> and C<duration> values as L<DateTime> and L<DateTime::Duration>
+objects. For an
 option or arg with L</processValue>, each value is replaced by what the
 coderef returned for it.
 
@@ -2273,6 +2343,13 @@ L</createPathIfMissing> could not create the path.
 =item 'VALUE' is not a URL
 
 The value is not of the form C<scheme://...>, see L</url>.
+
+=item 'VALUE' is not a date
+
+=item 'VALUE' is not a duration
+
+L<DateTime::Format::Natural> cannot parse the value, see L</date> and
+L</duration>.
 
 =item 'VALUE' is not one of: VALUES
 
@@ -2546,6 +2623,18 @@ C<arg 'NAME':> instead.)
 
 =item option 'NAME': mustExist and createPathIfMissing are mutually exclusive
 
+=item option 'NAME': type 'TYPE' requires the DateTime::Format::Natural module
+
+The option uses C<date> or C<duration>, and L<DateTime::Format::Natural>
+is not installed.
+
+=item option 'NAME': timezone 'ZONE' is not a known time zone
+
+=item option 'NAME': timezone must be a non-empty string
+
+The L</timezone> key does not name a time zone that L<DateTime::TimeZone>
+knows.
+
 =item arg 'NAME': type 'TYPE' cannot be used for a positional arg
 
 =item arg 'NAME': multiple is only allowed on the last arg
@@ -2686,7 +2775,8 @@ Options with groups, defaults and a C<valid> list, and a required arg.
 
 =item F<02-types.pl>
 
-One option per built-in type.
+One option per built-in type, except C<date> and C<duration>, which need
+L<DateTime::Format::Natural> and are shown in F<09-dates.pl>.
 
 =item F<03-commands.pl>
 
@@ -2714,6 +2804,12 @@ C<--create-default-config>.
 
 C<valid> lists and coderefs, C<lazyValid>, float bounds, C<mustExist>,
 C<createPathIfMissing>, C<hidden> and C<typehint>.
+
+=item F<09-dates.pl>
+
+C<date> and C<duration> options, a fixed C<timezone>, and
+C<processValue> turning a duration into seconds. Needs
+L<DateTime::Format::Natural>.
 
 =back
 
@@ -2765,8 +2861,9 @@ in the order of the spec.
 Perl 5.26 or later, L<Object::Pad> 0.818 or later, L<Getopt::Long> 2.50
 or later, L<Feature::Compat::Try> and L<JSON::PP>.
 
-Optional: L<YAML::XS> for YAML config files, and L<Term::ReadKey> for
-wrapping the help output to the terminal width.
+Optional: L<YAML::XS> for YAML config files, L<Term::ReadKey> for
+wrapping the help output to the terminal width, and
+L<DateTime::Format::Natural> for the C<date> and C<duration> types.
 
 =head1 SEE ALSO
 

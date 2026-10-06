@@ -4,6 +4,7 @@ use Test2::V0;
 use File::Temp qw(tempdir);
 use JSON::PP ();
 use Getopt::Pad::Type;
+use Getopt::Pad::Spec;
 
 my $registry = Getopt::Pad::Type::registry();
 
@@ -115,6 +116,51 @@ subtest 'url' => sub {
 	like $url->check('dave@oldserver.example.com:/srv/git/project.git'), qr/is not a URL/, 'scp-like address rejected';
 	like $url->check('not a url'), qr/is not a URL/, 'garbage rejected';
 	like $url->check("https://example.com/x\n"), qr/is not a URL/, 'trailing newline rejected';
+};
+
+subtest 'date and duration need DateTime::Format::Natural' => sub {
+	delete local $INC{'DateTime/Format/Natural.pm'};
+	local @INC = (sub { die "not installed\n" if $_[1] eq 'DateTime/Format/Natural.pm'; return }, @INC);
+	is Getopt::Pad::Type::Date->checkSpecKeys, "type 'date' requires the DateTime::Format::Natural module", 'date';
+	is Getopt::Pad::Type::Duration->checkSpecKeys, "type 'duration' requires the DateTime::Format::Natural module", 'duration';
+};
+
+subtest 'date' => sub {
+	skip_all('DateTime::Format::Natural is not installed') if !Getopt::Pad::Type::Temporal->isNaturalInstalled;
+
+	my $date = Getopt::Pad::Type::Date->new(timezone => 'UTC');
+	is $date->check('tomorrow 3pm'), undef, 'natural language accepted';
+	like $date->check('blurb'), qr/'blurb' is not a date/, 'garbage rejected';
+	my $coerced = $date->coerce('2026-10-06 14:00');
+	isa_ok $coerced, ['DateTime'], 'coerced to a DateTime';
+	is "$coerced", '2026-10-06T14:00:00', 'the date given';
+	is $coerced->time_zone->name, 'UTC', 'in the timezone of the spec';
+
+	my $spec    = Getopt::Pad::Spec->new(raw => { options => { since => { type => 'date', default => 'yesterday' } } });
+	my ($since) = $spec->root->declaredOptions;
+	isa_ok $since->default, ['DateTime'], 'the default is coerced';
+	is $since->presentedDefault, 'yesterday', 'help and config files show it as the spec wrote it';
+	like $spec->helperFor($spec->root, programName => 'demo', width => 100, color => 0)->renderHelp, qr/Default = yesterday$/m, 'in the help output';
+
+	like Getopt::Pad::Type::Date->checkSpecKeys(timezone => 'Nowhere/Bogus'), qr/timezone 'Nowhere\/Bogus' is not a known time zone/, 'unknown timezone';
+	is Getopt::Pad::Type::Date->new->timezone, 'local', 'local by default';
+
+	my $originalNew = \&DateTime::TimeZone::new;
+	no warnings 'redefine';
+	local *DateTime::TimeZone::new = sub { my ($class, %args) = @_; die "Cannot determine local time zone\n" if $args{name} eq 'local'; return $originalNew->(@_) };
+	is Getopt::Pad::Type::Date->new->zone->name, 'floating', 'an unknown local zone falls back to floating';
+};
+
+subtest 'duration' => sub {
+	skip_all('DateTime::Format::Natural is not installed') if !Getopt::Pad::Type::Temporal->isNaturalInstalled;
+
+	my $duration = Getopt::Pad::Type::Duration->new;
+	my $minutes  = $duration->coerce('90 minutes');
+	isa_ok $minutes, ['DateTime::Duration'], 'coerced to a DateTime::Duration';
+	is [$minutes->in_units(qw(minutes nanoseconds))], [90, 0], 'a bare length';
+	is [$duration->coerce('for 2 days')->in_units('days')], [2], 'a leading for';
+	like $duration->check('1 hour 30 minutes'), qr/'1 hour 30 minutes' is not a duration/, 'one number and unit only';
+	like $duration->check('soon'), qr/'soon' is not a duration/, 'garbage rejected';
 };
 
 subtest 'custom type registration' => sub {

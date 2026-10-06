@@ -150,7 +150,7 @@ class Getopt::Pad::Config :strict(params) {
 	# structure. Groups and command sections without defaults are left out.
 	method defaultSection($level) {
 		my %section;
-		$section{$_->group}{$_->name} = $_->default foreach grep { $_->hasDefault } $level->declaredOptions;
+		$section{$_->group}{$_->name} = $_->presentedDefault foreach grep { $_->hasDefault } $level->declaredOptions;
 		foreach my $name ($level->commandNames) {
 			my $commandSection = $self->defaultSection($level->command($name));
 			$section{+COMMANDS_KEY}{$name} = $commandSection if %$commandSection;

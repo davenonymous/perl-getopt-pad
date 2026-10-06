@@ -35,6 +35,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	field $required   :reader = 0;
 	field $hasDefault :reader = 0;
 	field $default    :reader;
+	field $specDefault;
 	field $valid     :reader;
 	field $lazyValid;
 	field $processValue :reader;
@@ -67,6 +68,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		if (exists $spec{default}) {
 			$hasDefault = 1;
 			$default    = delete $spec{default};
+			$specDefault = $default;
 		}
 		$valid     = delete $spec{valid};
 		$lazyValid = delete $spec{lazyValid};
@@ -102,6 +104,12 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	method checkedDefault($value) {
 		return undef if !defined $value && !$multiple && !$hash && !$objectlist;
 		return $self->shapedValue($value, sub ($problem) { specError("option '%s': default value: %s", $name, $problem) });
+	}
+
+	# The default as help output and config files show it: as the spec
+	# wrote it for a Type whose values are objects, else checked.
+	method presentedDefault() {
+		return $type->presentsAsGiven ? $specDefault : $default;
 	}
 
 	# What the reader gets when no value source set the option and the spec
@@ -393,6 +401,13 @@ without C<valid>. Shell completion uses it too.
 =item typeLabel
 
 The tag the help output shows: C<typehint>, or the type's C<label>.
+
+=item presentedDefault
+
+The default as the help output and C<--create-default-config> show it:
+as the spec wrote it when the type's C<presentsAsGiven> is true (the
+C<date> and C<duration> types, whose values are objects), else
+C<default>.
 
 =item takesPairs
 
