@@ -1,5 +1,11 @@
 Revision history for Getopt::Pad
 
+0.06    (unreleased)
+        - Add processValue to option and arg specs: a coderef called
+          with the level's result object and each value it was set to,
+          whose return value replaces it, e.g. to wrap a path in an
+          object
+
 0.05    2026-10-05
         - Require Object::Pad 0.818: class methods with a signature fail
           on older versions (GitHub issue #1)

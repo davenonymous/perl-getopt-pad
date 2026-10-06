@@ -373,6 +373,7 @@ L</description>, L</examples>, L</config>, L</version> and L</argv>.
     hidden               boolean                false
     valid                arrayref or coderef    none       allowed values
     lazyValid            coderef                none       custom check
+    processValue         coderef                none       replaces each value
     multiple             boolean                false      value-taking types only
     csv                  boolean                false      requires multiple
     hash                 boolean                false      value-taking types only
@@ -398,6 +399,7 @@ other. C<mustExist> and C<createPathIfMissing> exclude each other.
     multiple             boolean    false      last arg only, takes the rest
     help                 string     ''
     typehint             string     type's     label shown in the help
+    processValue         coderef    none       replaces each value
     min, max             number     none       int and float only
     mustExist            boolean    false      file and dir only
     createPathIfMissing  boolean    false      file and dir only
@@ -807,6 +809,40 @@ If you want a more specific error message than "is not a valid value",
 write a custom type instead (see L<Getopt::Pad::Type>), whose C<check>
 method returns the message.
 
+=head2 processValue
+
+=for highlighter language=perl
+
+    processValue => sub { my ($opt, $value) = @_; return Mojo::File->new($value) },
+
+Your own code that turns a value into what the reader returns, for
+example an object. It is allowed on options and args (see
+L</ARG SPECS>). The coderef is called with the result object of the
+option's level and one value, and its return value replaces the value.
+It runs after all of the level's options and args passed their checks
+(see L</How values are checked>), for the value that is finally used,
+whether it comes from the command line, a config file or the
+L</default>. For options with several values, it is called once per
+value: per list item for L</multiple>, per mapping value for L</hash>
+and per field value for L</objectlist>; the list or mapping around them
+stays; a L<multiple arg|/ARG SPECS> is processed per word. An option
+that is not set anywhere and has no default, and an optional arg that is
+not given, are not processed and read as usual (see
+L</Values by option kind>).
+
+C<$opt> shows the checked values of every option and arg of the level
+before any C<processValue> ran, so the order of the callbacks does not
+matter. Its L<Getopt::Pad::Result/subcommand> is already processed, but
+it cannot see the options of the levels above, including the
+L</inherit> options declared there. C<$opt> is not the object
+C<GetOptions> returns: that one is created after all callbacks ran and
+holds the processed values.
+
+The help output, shell completion and C<--create-default-config> show
+the values as they were before processing. Exceptions thrown by the
+coderef are not caught (see L</Spec errors>); to reject a value with a
+user error, use L</lazyValid> or a custom type.
+
 =head2 multiple
 
 =for highlighter language=perl
@@ -1053,6 +1089,11 @@ The help text shown in the C<Arguments> section of the help output.
 =item typehint
 
 Replaces the type label in the help output, see L</typehint>.
+
+=item processValue
+
+Replaces each value with what the coderef returns for it, see
+L</processValue>.
 
 =back
 
@@ -1435,10 +1476,15 @@ The L</lazyValid> check, called with the converted value.
 For the value that is finally used: preparation, which creates missing
 paths for L</createPathIfMissing>.
 
+=item 7.
+
+For the value that is finally used, once all options and args of the
+level passed the steps above: L</processValue>.
+
 =back
 
-Args pass steps 2, 3 and 6. Defaults pass steps 1 to 5 when
-C<GetOptions> builds the spec, and step 6 when a parse uses them.
+Args pass steps 2, 3, 6 and 7. Defaults pass steps 1 to 5 when
+C<GetOptions> builds the spec, and steps 6 and 7 when a parse uses them.
 
 =head1 CONFIG FILES
 
@@ -1991,7 +2037,9 @@ name.
     objectlist option                  arrayref of hashrefs   []
     optional arg                       the value              undef
 
-Numbers from C<int> and C<float> options are returned as numbers.
+Numbers from C<int> and C<float> options are returned as numbers. For an
+option or arg with L</processValue>, each value is replaced by what the
+coderef returned for it.
 
 =head2 Methods
 
@@ -2084,8 +2132,8 @@ the command line is. The exception is an error raised by a L</valid>
 coderef that returns something other than an arrayref, which is only
 noticed when the coderef is called.
 
-Exceptions thrown by your own coderefs (L</valid>, L</lazyValid>) are
-not caught; they propagate out of C<GetOptions>.
+Exceptions thrown by your own coderefs (L</valid>, L</lazyValid>,
+L</processValue>) are not caught; they propagate out of C<GetOptions>.
 
 =head2 Exit status (exit code)
 
@@ -2474,6 +2522,10 @@ See L</TYPES>.
 =item option 'NAME': the valid coderef must return an array reference
 
 =item option 'NAME': lazyValid must be a code reference
+
+=item option 'NAME': processValue must be a code reference
+
+=item arg 'NAME': processValue must be a code reference
 
 =item option 'NAME': typehint must be a non-empty string
 

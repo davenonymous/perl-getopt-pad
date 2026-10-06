@@ -116,6 +116,9 @@ word and lone config value split at commas for `csv` - a mapping of
 and coercion, the Valid list and the lazyValid predicate. Spec defaults pass it
 once, when the Spec is built. An Option no Value source set and without a
 default reads as an empty list or mapping in those shapes, else undef.
+After every Option and Arg of a Level passed it, an Option's or Arg's
+`processValue` callback may replace each value it set, seeing the
+unprocessed Result.
 _Avoid_: validation chain, value processing
 
 **Valid list**:

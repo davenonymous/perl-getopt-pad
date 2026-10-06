@@ -7,7 +7,7 @@ use Getopt::Pad::Result;
 
 class Getopt::Pad::Spec::Option :strict(params) {
 	use Carp qw(croak);
-	use Getopt::Pad::Util qw(camelize specError isValidName);
+	use Getopt::Pad::Util qw(camelize specError isValidName processedWith);
 
 	our $VERSION = '0.05';
 
@@ -37,6 +37,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	field $default    :reader;
 	field $valid     :reader;
 	field $lazyValid;
+	field $processValue :reader;
 	field $group    :reader;
 	field $help     :reader = '';
 	field $multiple   :reader = 0;
@@ -69,6 +70,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		}
 		$valid     = delete $spec{valid};
 		$lazyValid = delete $spec{lazyValid};
+		$processValue = delete $spec{processValue};
 		$group    = delete $spec{group} // 'Options';
 		$help     = delete $spec{help} // '';
 		$multiple   = delete $spec{multiple} ? 1 : 0;
@@ -88,6 +90,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		specError("option '%s': csv requires multiple", $name) if $csv && !$multiple;
 		specError("option '%s': valid must be an array or code reference", $name) if defined $valid && ref $valid ne 'ARRAY' && ref $valid ne 'CODE';
 		specError("option '%s': lazyValid must be a code reference", $name) if defined $lazyValid && ref $lazyValid ne 'CODE';
+		specError("option '%s': processValue must be a code reference", $name) if defined $processValue && ref $processValue ne 'CODE';
 		specError("option '%s': typehint must be a non-empty string", $name) if defined $typehint && (ref $typehint || $typehint eq '');
 
 		$default = $self->checkedDefault($default) if $hasDefault;
@@ -185,6 +188,10 @@ class Getopt::Pad::Spec::Option :strict(params) {
 			Getopt::Pad::Error->throw("option '--%s': %s", $name, $problem) if defined $problem;
 		}
 		return $value;
+	}
+
+	method processedValue($result, $value) {
+		return processedWith($processValue, $result, $value);
 	}
 
 	method scalarsOf($value) {
@@ -316,7 +323,7 @@ An option spec holds the checked settings of one option: the primary
 name, the aliases, the reader name, the type (a L<Getopt::Pad::Type>
 instance) and the keys C<required>, C<default>, C<valid>, C<lazyValid>,
 C<group>, C<help>, C<multiple>, C<hash>, C<csv>, C<objectlist>,
-C<hidden>, C<inherit> and C<typehint>. The meaning of each key is
+C<hidden>, C<inherit>, C<typehint> and C<processValue>. The meaning of each key is
 documented in L<Getopt::Pad/OPTION SPECS>.
 
 The constructor checks every key and their combinations, and checks and
@@ -347,17 +354,28 @@ Finally every single value of the result is passed to the type's
 C<prepare> (which creates missing paths for C<createPathIfMissing>). This
 happens only for the value that is finally used, default included.
 
+C<processedValue($result, $value)> runs the C<processValue> coderef on
+that reader value: every single value in it is replaced by what the
+coderef returns when called with C<$result> and the value, the list or
+mapping around them is kept (see C<processedWith> in
+L<Getopt::Pad::Util>). An unset single value (C<undef>) is left alone.
+Without C<processValue> the value is returned as it is.
+
 =head1 METHODS
 
 Besides the readers of its settings (C<name>, C<aliases>, C<reader>,
 C<type>, C<typeName>, C<required>, C<hasDefault>, C<default>, C<valid>,
 C<group>, C<help>, C<multiple>, C<hash>, C<csv>, C<objectlist>,
-C<hidden>, C<inherit>, C<typehint>, C<auto>, C<optionalValue>,
-C<trigger>):
+C<hidden>, C<inherit>, C<typehint>, C<processValue>, C<auto>,
+C<optionalValue>, C<trigger>):
 
 =over 4
 
 =item readerValue(%sources)
+
+See L</Resolving a value>.
+
+=item processedValue($result, $value)
 
 See L</Resolving a value>.
 

@@ -8,7 +8,7 @@ use experimental 'signatures';
 use Exporter qw(import);
 
 our $VERSION   = '0.05';
-our @EXPORT_OK = qw(camelize specError expandTilde useColor isValidName);
+our @EXPORT_OK = qw(camelize specError expandTilde useColor isValidName processedWith);
 
 sub useColor($handle) {
 	return (-t $handle) && !length($ENV{NO_COLOR} // '') && (($ENV{TERM} // '') ne 'dumb') ? 1 : 0;
@@ -33,6 +33,16 @@ sub camelize($name) {
 	specError("derived reader name '%s' (from '%s') is not a valid identifier", $reader, $name) if $reader !~ /^[a-zA-Z_]\w*$/;
 
 	return $reader;
+}
+
+# $value with every scalar in it replaced by what the processValue
+# $callback of an option or arg returns for it, the shape kept. $result is
+# the Result the callback sees. An unset scalar (undef) is left alone.
+sub processedWith($callback, $result, $value) {
+	return $value if !defined $callback || !defined $value;
+	return [map { processedWith($callback, $result, $_) } $value->@*] if ref $value eq 'ARRAY';
+	return { map { $_ => processedWith($callback, $result, $value->{$_}) } keys $value->%* } if ref $value eq 'HASH';
+	return $callback->($result, $value);
 }
 
 # Spec mistakes are programmer errors: report them at the first caller
@@ -84,6 +94,13 @@ a letter, followed by word characters or dashes.
 Dies with C<Getopt::Pad spec: MESSAGE at FILE line LINE.>, where FILE and
 LINE are those of the first caller outside Getopt::Pad, normally the
 C<GetOptions> call.
+
+=item processedWith($callback, $result, $value)
+
+C<$value> with every single value in it replaced by
+C<< $callback->($result, $single) >>; arrayrefs and hashrefs around them
+are rebuilt in the same shape. C<undef> and a missing C<$callback> leave
+the value as it is. Options and args use it for C<processValue>.
 
 =item expandTilde($path)
 

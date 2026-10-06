@@ -138,6 +138,38 @@ subtest 'paths created when the parse settles on them' => sub {
 		qr/option 'work-dir': mustExist and createPathIfMissing are mutually exclusive/, 'both keys is a spec error';
 };
 
+subtest 'processValue' => sub {
+	my @seen;
+	my $wrap = sub ($opt, $value) { push @seen, $opt->prefix; return [wrapped => $value] };
+	my $opt  = parseWith(
+		['--name', 'a', '--tag', 'x', '--tag', 'y', '--env', 'os=linux', 'rest'],
+		options => {
+			prefix  => { type => 's', default => 'p', processValue => sub ($opt, $value) { return uc $value } },
+			name    => { type => 's', processValue => $wrap },
+			tag     => { type => 's', multiple => 1, processValue => $wrap },
+			env     => { type => 's', hash => 1, processValue => $wrap },
+			level   => { type => 's', default => 'info', processValue => $wrap },
+			unset   => { type => 's', processValue => $wrap },
+			nothing => { type => 's', multiple => 1, processValue => $wrap },
+		},
+		args => [{ short => 'word', processValue => $wrap }],
+	);
+	is $opt->prefix,  'P',                                  'a default is processed';
+	is $opt->name,    [wrapped => 'a'],                     'a single value is processed';
+	is $opt->tag,     [[wrapped => 'x'], [wrapped => 'y']], 'every list item is processed';
+	is $opt->env,     { os => [wrapped => 'linux'] },       'every mapping value is processed';
+	is $opt->level,   [wrapped => 'info'],                  'the default of another option too';
+	is $opt->unset,   undef,                                'an unset option is not processed';
+	is $opt->nothing, [],                                   'an empty list stays empty';
+	is $opt->word,    [wrapped => 'rest'],                  'an arg is processed';
+	is \@seen,        [('p') x 6],                          'callbacks see the unprocessed values of other options';
+
+	like dies { parseWith([], options => { name => { type => 's', processValue => 'uc' } }) },
+		qr/spec: option 'name': processValue must be a code reference/, 'processValue needs a coderef';
+	like dies { parseWith([], args => [{ short => 'word', processValue => 'uc' }]) },
+		qr/spec: arg 'word': processValue must be a code reference/, 'on args too';
+};
+
 subtest 'validation failures' => sub {
 	like dies { parseWith(['--frobnicate'], options => {}) },
 		qr/Unknown option: frobnicate/, 'unknown option';

@@ -315,6 +315,39 @@ that is finally used. If a later option or arg turns out to be invalid,
 the directory may already exist. For a C<file> option, an empty file and
 its parent directories are created. Nothing is created for C<--help>.
 
+=head2 Turning a value into an object (processValue)
+
+C<processValue> replaces each value with what its coderef returns. It is
+called with the result object and the checked value:
+
+=for highlighter language=perl
+
+    use Mojo::File qw(path);
+
+    options => {
+        root => {
+            type         => 'dir',
+            default      => '.',
+            processValue => sub { my ($opt, $value) = @_; return path($value) },
+        },
+        output => {
+            type         => 'string',
+            default      => 'report.txt',
+            processValue => sub { my ($opt, $value) = @_; return path($opt->root, $value) },
+        },
+    },
+
+=for highlighter language=plain
+
+    $ tool --root /srv/site     # $opt->root is path('/srv/site'),
+                                # $opt->output is path('/srv/site/report.txt')
+
+C<$opt> holds the values before any C<processValue> ran, so
+C<< $opt->root >> is the string C<'/srv/site'> inside the callbacks. For
+C<multiple>, C<hash> and C<objectlist> options the coderef is called
+once per value. Args take C<processValue> too. An option that is not
+set anywhere and has no default is not processed.
+
 =head1 OPTIONS WITH SEVERAL VALUES
 
 =head2 Repeating an option (multiple)

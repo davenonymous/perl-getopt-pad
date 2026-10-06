@@ -145,11 +145,19 @@ class Getopt::Pad::Parser :strict(params) {
 
 		my %readerValues;
 		$readerValues{$_->reader} = $_->readerValue(commandLine => \%commandLine, config => $config) foreach $level->declaredOptions;
+		%readerValues = (%readerValues, $self->consumeArgs($level, $words)) if !$level->hasCommands;
+		my %levelValues = $level->hasCommands ? (command => $step->{command}, subcommand => $subResult) : ();
 
-		my $class  = Getopt::Pad::Result::Generator::generate($level);
-		my $helper = $spec->helperFor($level);
-		return $class->new(%readerValues, command => $step->{command}, subcommand => $subResult, helper => $helper) if $level->hasCommands;
-		return $class->new(%readerValues, $self->consumeArgs($level, $words), helper => $helper);
+		my $class       = Getopt::Pad::Result::Generator::generate($level);
+		my $helper      = $spec->helperFor($level);
+		my $unprocessed = $class->new(%readerValues, %levelValues, helper => $helper);
+		my @processing  = grep { defined $_->processValue } $level->declaredOptions, $level->args;
+		return $unprocessed if !@processing;
+
+		# Every processValue callback sees the unprocessed Result, so the
+		# order they run in does not matter.
+		$readerValues{$_->reader} = $_->processedValue($unprocessed, $readerValues{$_->reader}) foreach @processing;
+		return $class->new(%readerValues, %levelValues, helper => $helper);
 	}
 
 	method validatedArgValue($arg, $value) {
@@ -252,7 +260,10 @@ its value from the command line words of its level and the config values
 of its level's section (see L<Getopt::Pad::Spec::Option>); an inherited
 option gets the words collected on all levels. The innermost level
 consumes the positional words for its args (type check, conversion,
-C<prepare>). Each level's result object, created by
+C<prepare>). When options or args of the level have C<processValue>,
+the level's result object is created with the checked values first and
+handed to every callback; a second result object with the processed
+values replaces it. Each level's result object, created by
 L<Getopt::Pad::Result::Generator>, holds the result object of the level
 below.
 

@@ -86,7 +86,9 @@ option that is not a C<flag> or C<bool>, such as a C<string> option,
 is returned as a L<JSON::PP::Boolean> object, which stringifies to 1 or
 0.) These references belong to the result object; if your
 program changes their contents, the reader returns the changed data from
-then on. Other parses are not affected. What each kind of option returns is
+then on. Other parses are not affected. An option or arg with
+C<processValue> returns what its coderef returned instead, see
+L<Getopt::Pad/processValue>. What each kind of option returns is
 listed in L<Getopt::Pad/Values by option kind>, and how reader names are
 derived from option names in L<Getopt::Pad/Reader names>.
 
