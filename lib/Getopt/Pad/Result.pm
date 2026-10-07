@@ -83,10 +83,7 @@ use C<< $opt->isa('Getopt::Pad::Result') >> to check for a result object.
 The readers are read-only: there are no methods to set values, and
 calling a reader with an argument is an error. The values are plain Perl
 data: strings, numbers, and for options with several values arrayrefs
-and hashrefs. (One exception: a JSON C<true> or C<false> given to an
-option that is not a C<flag> or C<bool>, such as a C<string> option,
-is returned as a L<JSON::PP::Boolean> object, which stringifies to 1 or
-0.) These references belong to the result object; if your
+and hashrefs. These references belong to the result object; if your
 program changes their contents, the reader returns the changed data from
 then on. Other parses are not affected. An option or arg with
 C<processValue> returns what its coderef returned instead, see

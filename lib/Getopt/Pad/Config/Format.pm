@@ -142,7 +142,9 @@ options) and hashrefs (for C<hash> and C<objectlist> options). Getopt::Pad
 checks the structure and every value, so C<parse> does not need to.
 Booleans may be returned as C<1> and C<0> or as boolean objects such as
 L<JSON::PP::Boolean>; an undefined value is reported to the user as
-C<no value given>.
+C<no value given>. A file that sets nothing, such as an empty file,
+should give an empty hashref: anything that is not a hashref is reported
+as C<config file 'PATH' must contain a mapping of group names>.
 
 When the text cannot be parsed, C<parse> dies. Getopt::Pad reports the
 message to the user as a config error that names the file, for example

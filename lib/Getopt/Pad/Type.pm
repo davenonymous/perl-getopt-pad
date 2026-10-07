@@ -291,8 +291,9 @@ Getopt::Pad adds it, producing messages like C<option '--color':
 C<check> always receives a single defined value: lists and mappings are
 taken apart before, and missing values are reported before. Values from
 config files can be numbers, or booleans: for C<true> and C<false>, JSON
-files give L<JSON::PP::Boolean> objects, which compare and stringify as 1
-and 0, and YAML files give 1 and the empty string. A value that fails
+files give 1 and 0, and YAML files give 1 and the empty string. A config
+format of your own may also give boolean objects such as
+L<JSON::PP::Boolean>. A value that fails
 C<check> is not passed to any other method.
 
 The spec's default is checked when C<GetOptions> builds the spec, on

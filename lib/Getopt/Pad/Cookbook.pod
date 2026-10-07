@@ -157,9 +157,8 @@ that checks values (for example C<int>, or C<dir> with C<mustExist>), an
 invalid value in the variable makes C<GetOptions> die with a spec error
 instead of reporting a user error.
 
-C<--create-default-config> writes an option whose default is C<undef>
-with an empty value, which the program rejects when it reads the file;
-remove that line from a generated file.
+C<--create-default-config> leaves out an option whose default is
+C<undef>.
 
 =head2 Hiding an option from the help (hidden)
 

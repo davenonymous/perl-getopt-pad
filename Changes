@@ -45,6 +45,14 @@ Revision history for Getopt::Pad
         - Add the verify type method for checks that depend on the
           machine; it runs on the values of every selected level before
           any prepare
+        - --create-default-config leaves out options whose default is
+          undef, so the file it writes loads back
+        - An empty config file, or a YAML file with only comments, sets
+          nothing instead of being an error
+        - JSON true and false reach non-boolean options as plain 1 and
+          0, as from YAML, not as JSON::PP::Boolean objects
+        - Errors in the structure of a config file are shown with the
+          help of the command the user ran, like every other error
 
 0.05    2026-10-05
         - Require Object::Pad 0.818: class methods with a signature fail

@@ -26,7 +26,7 @@ class Getopt::Pad::Parser :strict(params) {
 		my @words           = $argv->@*;
 		my @steps           = $self->parseCommandLine(\@words);
 		my $inheritedValues = $steps[-1]{inheritedValues};
-		my $configValues    = $self->inContext($spec->root, sub { $self->loadConfigValues($inheritedValues) });
+		my $configValues    = $self->inContext($steps[-1]{level}, sub { $self->loadConfigValues($inheritedValues) });
 
 		my @settlements = map {
 			my $step = $_;

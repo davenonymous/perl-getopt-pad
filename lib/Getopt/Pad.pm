@@ -728,13 +728,11 @@ The help output shows the default as the spec wrote it in a C<Default>
 line, so an C<int> default of C<'007'> is shown as 007. An empty list or
 mapping default shows no C<Default> line.
 
-C<< default => undef >> is allowed for single-value options and mostly
-means the same as no default. There are two differences: a custom type's
-C<verify> and C<prepare> methods are called with C<undef> (see
-L<Getopt::Pad::Type/verify>), and C<--create-default-config> writes the
-option into the file with an empty value (YAML C<~>, JSON C<null>),
-which the program then rejects with C<no value given> when it reads the
-file. Remove such lines from a generated file.
+C<< default => undef >> is allowed for single-value options and means
+the same as no default, also to C<--create-default-config>, which leaves
+the option out. The one difference: a custom type's C<verify> and
+C<prepare> methods are called with C<undef> (see
+L<Getopt::Pad::Type/verify>).
 
 C<default> and L</required> exclude each other.
 
@@ -1457,7 +1455,7 @@ the level where it happened. An invalid value of an inherited option is
 reported with the help of the level that declares it, wherever on the
 command line it was given. An error in the structure of a config file
 (an unknown command or option, a parse error, a missing file) is
-reported with the help of the top level.
+reported with the help of the innermost level the command line selects.
 
 =head2 Options for all commands (global options)
 
@@ -1758,8 +1756,8 @@ C<counter> options take a non-negative integer.
 =item *
 
 A JSON C<true> or C<false> given to an option that is not a C<flag> or
-C<bool> reaches the reader as a L<JSON::PP::Boolean> object, which
-stringifies to 1 or 0.
+C<bool> reads as the plain value 1 or 0. YAML gives 1 and the empty
+string.
 
 =item *
 
@@ -1829,10 +1827,9 @@ that neither the command line nor a later config file overrides. A
 C<mustExist> path in the section of another command is not checked, and
 C<createPathIfMissing> creates nothing for it.
 
-An empty file is not an empty mapping. An empty YAML file (or one with
-only comments) is the user error C<config file 'PATH' must contain a
-mapping of group names>. For JSON, an empty file is a parse error; write
-C<{}> for a JSON file that sets nothing.
+An empty file sets nothing, like an empty mapping: a file of the
+autoload chain can be created before it has content. For YAML, a file
+with only comments is empty as well.
 
 =head2 Writing a starter config file
 
@@ -1845,7 +1842,7 @@ C<{}> for a JSON file that sets nothing.
 shows the path as the program received it.)
 
 The automatic option C<--create-default-config PATH> writes a config file
-that contains the default of every option that has one, on every level,
+that contains the default of every option that has a defined one, on every level,
 in the layout described above, and exits with status 0. Groups and
 command sections without any defaults are left out. The values are the
 defaults as the spec wrote them, so an C<int> default of C<'007'> is
@@ -2473,7 +2470,7 @@ The format could not parse the file. MESSAGE comes from the parser.
 
 =item config file 'PATH' must contain a mapping of group names
 
-The top level of the file is not a mapping, or the YAML file is empty.
+The top level of the file is not a mapping (for YAML also C<~>).
 
 =item config file 'PATH': group 'GROUP' must contain a mapping of option names
 
