@@ -2060,7 +2060,9 @@ For zsh, the directory must be in your C<$fpath>. You can also source the
 script from F<~/.bashrc> or F<~/.zshrc>. The script registers
 completion for the program's file name (the file name of C<$0> when the
 script is generated), so install the program under that name in your
-C<PATH>. The bash script needs bash 4.0 or later.
+C<PATH>. The bash script works with bash 3.2 (the system bash of macOS)
+and later. Before bash 4.0, file and directory candidates are not marked
+as such, so a directory is completed without a trailing slash.
 
 =head2 What is completed
 

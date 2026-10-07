@@ -209,7 +209,8 @@ subtest '--create-default-config writes the defaults and exits' => sub {
 	}, qr/Option create-default-config requires an argument/, 'a path is mandatory';
 
 	my $unsetPath = "$dir/unset-default.yaml";
-	dies { parseWith(['--create-default-config', $unsetPath], options => { %options, target => { type => 'dir', default => undef } }, config => { format => 'yaml' }) };
+	isa_ok dies { parseWith(['--create-default-config', $unsetPath], options => { %options, target => { type => 'dir', default => undef } }, config => { format => 'yaml' }) },
+		['Getopt::Pad::ExitRequest'], 'the file is written';
 	is YAML::XS::LoadFile($unsetPath), { Options => { 'log-level' => 'info' } }, 'an undefined default is left out';
 
 	my $spec = Getopt::Pad::Spec->new(raw => { options => {%options}, config => { format => 'yaml' } });

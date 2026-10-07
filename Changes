@@ -58,6 +58,8 @@ Revision history for Getopt::Pad
           The help, error messages and completion candidates are printed
           as UTF-8 unless the handle has an encoding layer. Non-ASCII
           strings in a spec need use utf8 to match
+        - The bash completion script works with bash 3.2, the system
+          bash of macOS
 
 0.05    2026-10-05
         - Require Object::Pad 0.818: class methods with a signature fail
