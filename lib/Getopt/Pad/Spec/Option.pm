@@ -254,17 +254,24 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	}
 
 	# The objects an objectlist option collects from its INDEX.FIELD=VALUE
-	# words, handed over as a flat mapping. The indices must form 0..n-1.
+	# words, handed over as a flat mapping. The indices must form 0..n-1,
+	# each written one way only: a leading zero would make 0 and 00 two
+	# keys for one object.
 	method objectsFromPairs($pairs, $report) {
-		my @objects;
+		my %objectAt;
 		foreach my $key (sort keys $pairs->%*) {
-			my ($index, $field) = $key =~ /\A(\d+)\.([\w-]+)\z/ or $report->(sprintf("invalid key '%s', expected INDEX.FIELD=VALUE", $key));
-			$objects[$index]{$field} = $pairs->{$key};
+			$report->(sprintf("invalid key '%s', the index must not have leading zeros", $key)) if $key =~ /\A0[0-9]+\./;
+			my ($index, $field) = $key =~ /\A([0-9]+)\.([\w-]+)\z/ or $report->(sprintf("invalid key '%s', expected INDEX.FIELD=VALUE", $key));
+			$objectAt{$index}{$field} = $pairs->{$key};
 		}
-		foreach my $index (0 .. $#objects) {
-			$report->(sprintf('missing index %d', $index)) if !defined $objects[$index];
+
+		# The sorted indices match their positions unless one is missing;
+		# comparing them needs no array as large as the largest index.
+		my @indices = sort { $a <=> $b } keys %objectAt;
+		foreach my $position (0 .. $#indices) {
+			$report->(sprintf('missing index %d', $position)) if $indices[$position] != $position;
 		}
-		return \@objects;
+		return [map { $objectAt{$_} } @indices];
 	}
 
 	# $value in the option's shape with every scalar checked and coerced: a

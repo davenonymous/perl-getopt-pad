@@ -946,12 +946,15 @@ arrayref of hashrefs, one per index, ordered by index:
     $ tool --server 0.host=alpha --server 0.port=80 --server 1.host=beta
     # $opt->server is [ { host => 'alpha', port => '80' }, { host => 'beta' } ]
 
-INDEX is a number starting at 0. The indices used must be exactly 0 to
-n-1, in any order; a gap is the user error C<missing index N>. FIELD
+INDEX is a number starting at 0, written without leading zeros. The
+indices used must be exactly 0 to n-1, in any order; a gap is the user
+error C<missing index N>. FIELD
 consists of letters, digits, underscores and dashes. A word without C<=>
 is the user error C<Option server, key "WORD", requires a value>; a word
 whose key does not have the form C<INDEX.FIELD> is the user error
-C<invalid key 'KEY', expected INDEX.FIELD=VALUE>. Giving the same
+C<invalid key 'KEY', expected INDEX.FIELD=VALUE>, and an index with a
+leading zero (C<00.host>) the user error C<invalid key 'KEY', the index
+must not have leading zeros>. Giving the same
 C<INDEX.FIELD> again replaces its value. The values are checked with the
 type (so the C<port> above stays a string for a C<string> option),
 L</valid> and L</lazyValid>. When the option is not set anywhere and has
@@ -1193,12 +1196,10 @@ Other values are the user error C<'VALUE' is not an integer>.
 Names: C<float>, C<num>, C<number>, C<f>. Keys: L</min, max>.
 
 A number in any notation Perl understands as a decimal number: C<1.5>,
-C<-2>, C<.5>, C<1e3>. Values spelled C<inf>, C<infinity> or C<nan> are
-rejected with C<'VALUE' is not a finite number>. Hexadecimal values such
-as C<0x10> are rejected with C<'VALUE' is not a number>. A value too
-large for a Perl number, such as
-C<1e999>, is accepted and reads as C<Inf>; use C<max> to exclude it. The
-reader returns a number. Other values are the user error C<'VALUE' is not
+C<-2>, C<.5>, C<1e3>. Values spelled C<inf>, C<infinity> or C<nan>, and
+values too large for a Perl number, such as C<1e999>, are rejected with
+C<'VALUE' is not a finite number>. Hexadecimal values such as C<0x10> are
+rejected with C<'VALUE' is not a number>. The reader returns a number. Other values are the user error C<'VALUE' is not
 a number>.
 
 =head2 file
@@ -2326,7 +2327,7 @@ The value of an C<int> or C<float> option is not a number of that kind.
 =item 'VALUE' is not a finite number
 
 A C<float> value spelled C<inf>, C<infinity> or C<nan> (in any case,
-with an optional sign).
+with an optional sign), or too large for a Perl number (C<1e999>).
 
 =item VALUE is smaller than the minimum of MIN
 
@@ -2383,6 +2384,11 @@ The value for KEY of a L</hash> option failed a check.
 
 A word of an L</objectlist> option does not have the form
 C<INDEX.FIELD=VALUE>.
+
+=item invalid key 'KEY', the index must not have leading zeros
+
+A word of an L</objectlist> option writes its index with a leading zero,
+such as C<00.host>.
 
 =item missing index N
 

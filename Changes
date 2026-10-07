@@ -30,6 +30,11 @@ Revision history for Getopt::Pad
           type method is gone again
         - Args show [has to exist] and [created if missing] in the help
         - An empty list or mapping default shows no Default line
+        - An objectlist index with a leading zero (00.host) is an error,
+          and a large index no longer allocates a list up to it before
+          the gap below it is reported
+        - A float value too large for a Perl number (1e999) is rejected
+          as not finite instead of reading as Inf
 
 0.05    2026-10-05
         - Require Object::Pad 0.818: class methods with a signature fail

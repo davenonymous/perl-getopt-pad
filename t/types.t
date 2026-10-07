@@ -70,6 +70,7 @@ subtest 'float' => sub {
 	like $float->check('x'), qr/not a number/, 'non-number rejected';
 	like $float->check('NaN'), qr/not a finite number/, 'NaN rejected';
 	like $float->check('-Inf'), qr/not a finite number/, 'infinity rejected';
+	like $float->check('1e999'), qr/'1e999' is not a finite number/, 'a value overflowing to infinity rejected';
 };
 
 subtest 'file and dir' => sub {

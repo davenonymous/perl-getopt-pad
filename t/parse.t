@@ -116,6 +116,9 @@ subtest 'objectlist' => sub {
 	like dies { parseWith(['--server', '0.host=a', '--server', '2.host=b'], options => {%server}) }, qr/option '--server': missing index 1/, 'a gap in the indices';
 	like dies { parseWith(['--server', 'host=a'], options => {%server}) },  qr/option '--server': invalid key 'host', expected INDEX.FIELD=VALUE/, 'a key without an index';
 	like dies { parseWith(['--server', '0.a.b=x'], options => {%server}) }, qr/invalid key '0.a.b'/, 'nested fields are rejected';
+	like dies { parseWith(['--server', '00.host=b', '--server', '0.host=a'], options => {%server}) },
+		qr/option '--server': invalid key '00.host', the index must not have leading zeros/, 'an index with a leading zero is rejected';
+	like dies { parseWith(['--server', '4000000000.host=a'], options => {%server}) }, qr/option '--server': missing index 0/, 'a large index alone is a gap at 0';
 	like dies { parseWith(['--limit', '0.cpu=lots'], options => { limit => { type => 'i', objectlist => 1 } }) },
 		qr/option '--limit': entry 0: key 'cpu': 'lots' is not an integer/, 'a value failing the type names its entry and key';
 };
