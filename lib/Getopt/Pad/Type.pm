@@ -73,10 +73,18 @@ class Getopt::Pad::Type :abstract {
 		return undef;
 	}
 
-	# Runs once per parse on every scalar of an option's or arg's effective
-	# value, after the value pipeline, for types whose values need the
-	# world arranged (a path created on demand). Return a problem
-	# description without the option name, or undef.
+	# Runs once per parse on every scalar of the value an option or arg
+	# settles on, for checks that depend on the machine rather than on the
+	# value (a path exists). Never runs on a spec default when the spec is
+	# built. Return a problem description without the option name, or
+	# undef.
+	method verify($value) {
+		return undef;
+	}
+
+	# Like verify, for types whose values need the world arranged (a path
+	# created on demand). Runs only after every value of the parse passed
+	# verify, so a parse that fails arranges nothing.
 	method prepare($value) {
 		return undef;
 	}
@@ -287,6 +295,10 @@ files give L<JSON::PP::Boolean> objects, which compare and stringify as 1
 and 0, and YAML files give 1 and the empty string. A value that fails
 C<check> is not passed to any other method.
 
+The spec's default is checked when C<GetOptions> builds the spec, on
+every run. Checks whose answer depends on the machine the program runs
+on, such as whether a path exists, belong in L</verify> instead.
+
 =head2 coerce
 
 =for highlighter language=perl
@@ -301,6 +313,28 @@ The C<valid> list and the C<lazyValid> check of an option see the
 converted value. The C<Default> line of the help output and
 C<--create-default-config> show the default as the spec wrote it, not
 converted.
+
+=head2 verify
+
+=for highlighter language=perl
+
+    method verify($value) {
+        return undef if !defined $value || -r $value;
+        return sprintf("'%s' is not readable", $value);
+    }
+
+Optional. Called with the final, converted value of an option or arg
+(once per value for options with several values), like L</prepare>, for
+checks that depend on the machine rather than on the value. It is never
+called with a default when the spec is built, only when the parse
+settles on the default. Returns C<undef> when the value is acceptable,
+otherwise a short description of the problem B<without> the option name,
+which becomes a user error. The built-in C<file> and C<dir> types check
+C<mustExist> here.
+
+C<verify> runs on the values of every level the command line selects
+before L</prepare> runs on any of them. It can be called with C<undef>
+when the option's default is C<undef>. The default accepts every value.
 
 =head2 prepare
 
@@ -317,7 +351,10 @@ Optional. Called with the final, converted value of an option or arg
 value that is overridden, such as a default when the command line sets
 the option. Use it for side effects the value needs; the built-in
 C<file> and C<dir> types create missing paths here for
-C<createPathIfMissing>.
+C<createPathIfMissing>. It runs only after the values of every selected
+level passed L</check> and L</verify>, so a parse that fails earlier
+changes nothing. A C<prepare> that fails can still follow another that
+succeeded in the same parse.
 
 Returns C<undef> on success, or a short description of the problem
 B<without> the option name, which becomes a user error. It can be called

@@ -292,10 +292,10 @@ C<min> and C<max> are inclusive and work for C<int> and C<float>:
     ERROR: option '--input': file 'missing.txt' does not exist
 
 A C<file> must be a file and a C<dir> a directory; a directory given to
-a C<file> option is reported as not existing. Do not give a C<mustExist>
-option a default path that might be missing on the user's machine: the
-default is checked when C<GetOptions> builds the spec, and a missing
-default path makes C<GetOptions> die.
+a C<file> option is reported as C<'PATH' is not a file>. A default path
+is checked only when the option is not set otherwise, so a default that
+is missing on the user's machine is an error only when the program
+actually uses it.
 
 =head2 A directory that is created when missing (createPathIfMissing)
 

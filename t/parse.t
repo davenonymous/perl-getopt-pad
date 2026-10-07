@@ -139,6 +139,29 @@ subtest 'paths created when the parse settles on them' => sub {
 
 	like dies { parseWith([], options => { 'work-dir' => { type => 'dir', mustExist => 1, createPathIfMissing => 1 } }) },
 		qr/option 'work-dir': mustExist and createPathIfMissing are mutually exclusive/, 'both keys is a spec error';
+
+	my %scratch = (scratch => { type => 'dir', createPathIfMissing => 1 });
+	like dies { parseWith(['--scratch', "$dir/early"], options => { %scratch, target => { type => 's', required => 1 } }) },
+		qr/missing required option '--target'/, 'a later option fails';
+	ok !-e "$dir/early", 'nothing is created when the parse fails';
+
+	like dies { parseWith(['--scratch', "$dir/early", '--source', "$dir/nope"], options => { %scratch, source => { type => 'file', mustExist => 1 } }) },
+		qr/option '--source': file '.*nope' does not exist/, 'a missing path fails';
+	ok !-e "$dir/early", 'nothing is created when another path fails its check';
+};
+
+subtest 'mustExist is checked when the parse settles on a path' => sub {
+	my $dir    = tempdir(CLEANUP => 1);
+	my %config = (config => { type => 'file', mustExist => 1, default => "$dir/missing.conf" });
+
+	my $opt = parseWith(['--config', __FILE__], options => {%config});
+	is $opt->config, __FILE__, 'a default missing on this machine is no spec error';
+
+	like dies { parseWith([], options => {%config}) },
+		qr/^option '--config': default value: file '.*missing\.conf' does not exist/, 'it is a user error when the parse settles on it';
+
+	like dies { parseWith(['--config', $dir], options => {%config}) },
+		qr/^option '--config': '.*' is not a file/, 'a path of the wrong kind is named as such';
 };
 
 subtest 'processValue' => sub {

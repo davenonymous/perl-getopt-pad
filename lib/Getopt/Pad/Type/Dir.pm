@@ -53,8 +53,8 @@ is not expanded.
 =over 4
 
 =item * With C<mustExist>, the path must be an existing directory
-(C<-d>); anything else is rejected with C<directory 'PATH' does not
-exist>.
+(C<-d>); a missing path is rejected with C<directory 'PATH' does not
+exist>, any other existing path with C<'PATH' is not a directory>.
 
 =item * With C<createPathIfMissing>, a missing directory is created with
 all missing parent directories, for the value that is finally used.

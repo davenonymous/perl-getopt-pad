@@ -730,8 +730,8 @@ mapping default shows no C<Default> line.
 
 C<< default => undef >> is allowed for single-value options and mostly
 means the same as no default. There are two differences: a custom type's
-C<prepare> method is called with C<undef> (see
-L<Getopt::Pad::Type/prepare>), and C<--create-default-config> writes the
+C<verify> and C<prepare> methods are called with C<undef> (see
+L<Getopt::Pad::Type/verify>), and C<--create-default-config> writes the
 option into the file with an empty value (YAML C<~>, JSON C<null>),
 which the program then rejects with C<no value given> when it reads the
 file. Remove such lines from a generated file.
@@ -1032,12 +1032,11 @@ parsed: an existing file (not a directory) for C<file>, an existing
 directory for C<dir>. The help output marks the option with
 C<[has to exist]>.
 
-Like every check, C<mustExist> also applies to the L</default>, and
-defaults are checked when C<GetOptions> builds the spec. A default path
-that does not exist on the machine the program runs on therefore makes
-C<GetOptions> die with a spec error, even when the command line gives
-another path. Give a C<mustExist> option a default only if the path is
-certain to exist.
+The path is checked only for the value that is finally used, after all
+other checks of every selected level passed. A L</default> is checked
+only when neither the command line nor a config file overrides it; a
+missing default path is then the user error C<option '--NAME': default
+value: file 'PATH' does not exist>.
 
 =item createPathIfMissing
 
@@ -1046,14 +1045,17 @@ directory with all missing parent directories for C<dir>, an empty file
 and its missing parent directories for C<file>. An existing path is left
 alone. The help output marks the option with C<[created if missing]>.
 
-The path is created after all checks of that value passed, and only for
-the value that is finally used: a default is created only if neither
-the command line nor a config file overrides it. Nothing is created for
+The path is created only for the value that is finally used: a default
+is created only if neither the command line nor a config file overrides
+it. Nothing is created until every option and arg of every selected
+level passed its checks, including L</mustExist>, so a command line that
+turns out to be invalid creates nothing. Nothing is created for
 C<--help> and the other automatic options, or for a shell completion
-request. Values are processed one option at a time, so a path can
-already have been created when a later option or arg of the same command
-line turns out to be invalid. If the path cannot be created, that is a
-user error (C<cannot create directory 'PATH': REASON>).
+request. If the path cannot be created, that is a user error
+(C<cannot create directory 'PATH': REASON>); paths created for other
+options of the same parse stay. A path that exists but is of the other
+kind, such as a directory for a C<file> option, is the user error
+C<'PATH' is not a file>.
 
 C<mustExist> and C<createPathIfMissing> exclude each other.
 
@@ -1133,8 +1135,8 @@ that is not given reads as C<undef>. Words left over after the last arg
 are the user error C<unexpected extra argument 'WORD'>. A level without
 C<args> accepts no positional words at all.
 
-Args are checked with their type, including C<mustExist>, the bounds and
-C<createPathIfMissing>. They cannot be set in config files.
+Args are checked with their type, including the bounds, C<mustExist>
+and C<createPathIfMissing>. They cannot be set in config files.
 
 =head1 TYPES
 
@@ -1531,8 +1533,7 @@ mapping are checked one by one in the following steps.
 
 =item 2.
 
-The type's check, including the type-specific keys (L</min, max>,
-L</mustExist>).
+The type's check, including the type-specific keys L</min, max>.
 
 =item 3.
 
@@ -1548,18 +1549,24 @@ The L</lazyValid> check, called with the converted value.
 
 =item 6.
 
-For the value that is finally used: preparation, which creates missing
-paths for L</createPathIfMissing>.
+For the value that is finally used, once the values of every level the
+command line selects passed the steps above: the checks that depend on
+the machine, such as L</mustExist>.
 
 =item 7.
+
+Once every such value passed step 6: preparation, which creates missing
+paths for L</createPathIfMissing>.
+
+=item 8.
 
 For the value that is finally used, once all options and args of the
 level passed the steps above: L</processValue>.
 
 =back
 
-Args pass steps 2, 3, 6 and 7. Defaults pass steps 1 to 5 when
-C<GetOptions> builds the spec, and steps 6 and 7 when a parse uses them.
+Args pass steps 2, 3 and 6 to 8. Defaults pass steps 1 to 5 when
+C<GetOptions> builds the spec, and steps 6 to 8 when a parse uses them.
 
 =head1 CONFIG FILES
 
@@ -2339,9 +2346,15 @@ The value is outside the L</min, max> bounds.
 
 =item directory 'PATH' does not exist
 
-The option has L</mustExist>, and the path is not an existing file or
-directory. The message is the same when the path exists but is of the
-other kind.
+The option has L</mustExist>, and the path does not exist. A missing
+L</default> path is reported as C<option '--NAME': default value: ...>.
+
+=item 'PATH' is not a file
+
+=item 'PATH' is not a directory
+
+The option has L</mustExist> or L</createPathIfMissing>, and the path
+exists but is of the other kind.
 
 =item cannot create file 'PATH': REASON
 

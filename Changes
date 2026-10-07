@@ -35,6 +35,16 @@ Revision history for Getopt::Pad
           the gap below it is reported
         - A float value too large for a Perl number (1e999) is rejected
           as not finite instead of reading as Inf
+        - mustExist is checked only on the path a parse settles on: a
+          default missing on the user's machine is no longer a spec
+          error, and is a user error only when the parse uses it
+        - A path of the wrong kind is reported as 'PATH' is not a file
+          (or directory) instead of as missing
+        - createPathIfMissing creates nothing until every value of
+          every selected level passed its checks
+        - Add the verify type method for checks that depend on the
+          machine; it runs on the values of every selected level before
+          any prepare
 
 0.05    2026-10-05
         - Require Object::Pad 0.818: class methods with a signature fail

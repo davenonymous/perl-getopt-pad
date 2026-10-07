@@ -58,8 +58,8 @@ accepts any path and returns it as given; a leading C<~> is not expanded.
 =over 4
 
 =item * With C<mustExist>, the path must be an existing file (C<-f>); a
-missing path or a directory is rejected with C<file 'PATH' does not
-exist>.
+missing path is rejected with C<file 'PATH' does not exist>, a
+directory with C<'PATH' is not a file>.
 
 =item * With C<createPathIfMissing>, a missing file is created empty,
 together with its missing parent directories, for the value that is

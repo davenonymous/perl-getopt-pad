@@ -79,13 +79,16 @@ subtest 'file and dir' => sub {
 	open my $fh, '>', $file or die $!;
 	close $fh;
 
-	is Getopt::Pad::Type::File->new(mustExist => 1)->check($file), undef, 'existing file ok';
-	like Getopt::Pad::Type::File->new(mustExist => 1)->check("$dir/nope"), qr/does not exist/, 'missing file rejected';
-	is Getopt::Pad::Type::File->new->check("$dir/nope"), undef, 'missing file ok without mustExist';
+	is Getopt::Pad::Type::File->new(mustExist => 1)->check("$dir/nope"), undef, 'check leaves existence to verify';
+	is Getopt::Pad::Type::File->new(mustExist => 1)->verify($file), undef, 'existing file ok';
+	like Getopt::Pad::Type::File->new(mustExist => 1)->verify("$dir/nope"), qr/^file '.*nope' does not exist$/, 'missing file rejected';
+	is Getopt::Pad::Type::File->new->verify("$dir/nope"), undef, 'missing file ok without mustExist';
 	is [Getopt::Pad::Type::File->new(mustExist => 1)->constraintNotes], ['has to exist'], 'constraint note';
+	like Getopt::Pad::Type::File->new(mustExist => 1)->verify($dir), qr/^'.*' is not a file$/, 'a directory is not a file';
 
-	is Getopt::Pad::Type::Dir->new(mustExist => 1)->check($dir), undef, 'existing dir ok';
-	like Getopt::Pad::Type::Dir->new(mustExist => 1)->check($file), qr/does not exist/, 'file is not a dir';
+	is Getopt::Pad::Type::Dir->new(mustExist => 1)->verify($dir), undef, 'existing dir ok';
+	like Getopt::Pad::Type::Dir->new(mustExist => 1)->verify($file), qr/^'.*exists\.txt' is not a directory$/, 'a file is not a directory';
+	like Getopt::Pad::Type::Dir->new(createPathIfMissing => 1)->verify($file), qr/is not a directory$/, 'nor can it be created as one';
 };
 
 subtest 'paths created on demand' => sub {

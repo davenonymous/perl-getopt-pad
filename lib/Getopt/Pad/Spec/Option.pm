@@ -179,32 +179,32 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		return (undef, $value);
 	}
 
-	# The Reader value for one parse. %sources maps each Value source to the
-	# raw values it gave, keyed by Primary name; a name missing from a map
-	# means that source did not set the option.
-	method readerValue(%sources) {
+	# The checked value one parse settles on, and the reporter for the
+	# problems its type's verify and prepare find in it later, worded for
+	# where the value came from. The empty value of an option no source
+	# sets leaves nothing to verify: its reporter is undef. %sources maps
+	# each Value source to the raw values it gave, keyed by Primary name; a
+	# name missing from a map means that source did not set the option.
+	method settledValue(%sources) {
 		my @unknown = grep { !$isValueSource{$_} } sort keys %sources;
 		croak(sprintf("Getopt::Pad: unknown value source(s): %s", join(', ', @unknown))) if @unknown;
 
 		foreach my $source (@valueSources) {
 			my $given = $sources{$source->{key}} // {};
 			next if !exists $given->{$name};
-			return $self->preparedValue($self->validatedValue($given->{$name}, $source));
+
+			my $report = $self->reporterFor($source);
+			return ($self->validatedValue($given->{$name}, $source, $report), $report);
 		}
 
-		return $self->preparedValue($self->copiedDefault) if $hasDefault;
+		return ($self->copiedDefault, $self->defaultReporter) if $hasDefault;
 		Getopt::Pad::Error->throw("missing required option '%s'", $self->spelling) if $required;
-		return $self->emptyValue;
+		return ($self->emptyValue, undef);
 	}
 
-	# The effective value after the type prepared every scalar in it, e.g.
-	# created a path on demand. Only the value a parse settles on gets
-	# here, never a default the command line overrides.
-	method preparedValue($value) {
-		foreach my $scalar ($self->scalarsOf($value)) {
-			my $problem = $type->prepare($scalar);
-			Getopt::Pad::Error->throw("option '%s': %s", $self->spelling, $problem) if defined $problem;
-		}
+	# The checked value one parse settles on, see settledValue.
+	method readerValue(%sources) {
+		my ($value) = $self->settledValue(%sources);
 		return $value;
 	}
 
@@ -212,19 +212,23 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		return processedWith($processValue, $result, $value);
 	}
 
-	method scalarsOf($value) {
-		return map { $self->scalarsOf($_) } $value->@*        if ref $value eq 'ARRAY';
-		return map { $self->scalarsOf($_) } values $value->%* if ref $value eq 'HASH';
-		return ($value);
+	# A reporter that throws a problem in the wording of $source: the
+	# option named as typed for the command line, by its Primary name for
+	# a config file.
+	method reporterFor($source) {
+		my $named = $source->{namesAsTyped} ? $self->spelling : $name;
+		return sub ($problem) { Getopt::Pad::Error->throw($source->{problemFormat}, $named, $problem) };
 	}
 
-	# The value one source gave, in the option's shape, with problems
-	# reported in that source's wording. The command line gives a multiple
-	# option its words and a pair-taking option a flat mapping of its
-	# key=value pairs; a config file gives the shape directly.
-	method validatedValue($value, $source) {
-		my $named  = $source->{namesAsTyped} ? $self->spelling : $name;
-		my $report = sub ($problem) { Getopt::Pad::Error->throw($source->{problemFormat}, $named, $problem) };
+	method defaultReporter() {
+		return sub ($problem) { Getopt::Pad::Error->throw("option '%s': default value: %s", $self->spelling, $problem) };
+	}
+
+	# The value one source gave, in the option's shape, with problems told
+	# to $report. The command line gives a multiple option its words and a
+	# pair-taking option a flat mapping of its key=value pairs; a config
+	# file gives the shape directly.
+	method validatedValue($value, $source, $report) {
 		return [map { $self->checkedScalar($_, $report) } $self->listItems($value, $source, $report)] if $multiple;
 		$value = $self->objectsFromPairs($value, $report) if $objectlist && $source->{givesWords};
 		return $self->shapedValue($value, $report);
@@ -362,8 +366,13 @@ L<Getopt::Pad::Spec::Level> sets to its command path
 
 =head2 Resolving a value
 
-C<readerValue(%sources)> returns the reader value of the option for one
-parse. C<%sources> maps each value source (C<commandLine>, C<config>) to
+C<settledValue(%sources)> returns the checked value of the option for
+one parse, and a reporter: a coderef that throws a problem found in the
+value later (by the type's C<verify> or C<prepare>) as a
+L<Getopt::Pad::Error> worded for the value's source, C<option '--NAME':
+default value: ...> for the default. The reporter is C<undef> when
+neither a source nor a default set the option. C<readerValue(%sources)>
+returns the value alone. C<%sources> maps each value source (C<commandLine>, C<config>) to
 the raw values it gave, keyed by primary name. The option takes the first
 source that set it, in that order, or else the default. Without either,
 a required option throws a L<Getopt::Pad::Error>, and any other option
@@ -379,9 +388,9 @@ predicate. Problems are thrown as L<Getopt::Pad::Error>, worded for their
 source (C<option '--NAME': ...> or C<config value for 'NAME': ...>) and
 naming the key or entry for C<hash> and C<objectlist> options.
 
-Finally every single value of the result is passed to the type's
-C<prepare> (which creates missing paths for C<createPathIfMissing>). This
-happens only for the value that is finally used, default included.
+The type's C<verify> and C<prepare> are not called here: the parser
+calls them on the settled values of every selected level, see
+L<Getopt::Pad::Parser/Second pass: the values>.
 
 C<processedValue($result, $value)> runs the C<processValue> coderef on
 that reader value: every single value in it is replaced by what the
@@ -400,7 +409,7 @@ C<optionalValue>, C<trigger>):
 
 =over 4
 
-=item readerValue(%sources)
+=item settledValue(%sources), readerValue(%sources)
 
 See L</Resolving a value>.
 

@@ -8,7 +8,7 @@ use experimental 'signatures';
 use Exporter qw(import);
 
 our $VERSION   = '0.05';
-our @EXPORT_OK = qw(camelize specError expandTilde useColor isValidName optionSpelling processedWith);
+our @EXPORT_OK = qw(camelize specError expandTilde useColor isValidName optionSpelling processedWith scalarsIn);
 
 sub useColor($handle) {
 	return (-t $handle) && !length($ENV{NO_COLOR} // '') && (($ENV{TERM} // '') ne 'dumb') ? 1 : 0;
@@ -49,6 +49,14 @@ sub processedWith($callback, $result, $value) {
 	return [map { processedWith($callback, $result, $_) } $value->@*] if ref $value eq 'ARRAY';
 	return { map { $_ => processedWith($callback, $result, $value->{$_}) } keys $value->%* } if ref $value eq 'HASH';
 	return $callback->($result, $value);
+}
+
+# Every single value in $value: the value itself, or the scalars of a
+# list, a mapping or a list of mappings.
+sub scalarsIn($value) {
+	return map { scalarsIn($_) } $value->@*        if ref $value eq 'ARRAY';
+	return map { scalarsIn($_) } values $value->%* if ref $value eq 'HASH';
+	return ($value);
 }
 
 # Spec mistakes are programmer errors: report them at the first caller
@@ -99,12 +107,22 @@ valid Perl identifier.
 Whether C<$name> is a valid option name, alias, arg name or command name:
 a letter, followed by word characters or dashes.
 
+=item optionSpelling($name)
+
+An option name as it is typed: C<-v> for a name of one letter, else
+C<--verbose>.
+
 =item specError($format, @args)
 
 Dies with C<Getopt::Pad spec: MESSAGE at FILE line LINE.>, where FILE and
 LINE are those of the first caller outside Getopt::Pad, normally the
 C<GetOptions> call. C<$!> and C<$?> are cleared first, so an uncaught
 spec error exits with status 255.
+
+=item scalarsIn($value)
+
+Every single value in C<$value>: the value itself, or the scalars of a
+list, a mapping or a list of mappings.
 
 =item processedWith($callback, $result, $value)
 
