@@ -5,7 +5,7 @@ class Getopt::Pad::Help :strict(params) {
 	use Feature::Compat::Try;
 	use List::Util      qw(max);
 	use File::Basename  qw(basename);
-	use Getopt::Pad::Util qw(useColor optionSpelling);
+	use Getopt::Pad::Util qw(useColor optionSpelling encodedFor);
 	use Text::Wrap ();
 
 	our $VERSION = '0.05';
@@ -59,12 +59,12 @@ class Getopt::Pad::Help :strict(params) {
 	}
 
 	method printHelp() {
-		print {$handle} $self->renderHelp;
+		print {$handle} encodedFor($handle, $self->renderHelp);
 		return $self;
 	}
 
 	method printVersion() {
-		print {$handle} $self->renderVersion, "\n";
+		print {$handle} encodedFor($handle, $self->renderVersion . "\n");
 		return $self;
 	}
 

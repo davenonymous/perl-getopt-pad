@@ -1036,16 +1036,22 @@ a shell would:
 
 =head2 Non-ASCII values
 
-Words from the command line are byte strings; values from config files
-are decoded character strings. If your program works with non-ASCII
-values, decode C<@ARGV> before calling C<GetOptions>:
+Values from the command line and from config files are decoded from
+UTF-8, so the readers return character strings. Write non-ASCII strings
+of the spec under C<use utf8>, so they are character strings as well:
 
 =for highlighter language=perl
 
-    use Encode qw(decode);
-    @ARGV = map { decode('UTF-8', $_) } @ARGV;
+    use utf8;
 
-    my $opt = GetOptions(...);
+    my $opt = GetOptions(
+        options => {
+            city => { type => 'string', valid => ['Köln', 'Bonn'] },
+        },
+    );
+
+Print such values through an encoding layer, for example with
+C<binmode STDOUT, ':encoding(UTF-8)'>.
 
 =head2 Types and config formats of your own
 

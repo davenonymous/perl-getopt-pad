@@ -23,16 +23,18 @@ our @EXPORT  = qw(GetOptions);
 sub GetOptions(@pairs) {
 	Getopt::Pad::Util::specError('GetOptions expects key/value pairs') if @pairs % 2;
 
-	my %raw  = @pairs;
-	my $argv = delete $raw{argv} // [@ARGV];
-	Getopt::Pad::Util::specError("'argv' must be an array reference") if ref $argv ne 'ARRAY';
+	my %raw     = @pairs;
+	my $rawArgv = delete $raw{argv} // [@ARGV];
+	Getopt::Pad::Util::specError("'argv' must be an array reference") if ref $rawArgv ne 'ARRAY';
+	my $argv = [map { Getopt::Pad::Util::decodedWord($_) } $rawArgv->@*];
 
 	my $spec = Getopt::Pad::Spec->new(raw => \%raw);
 
 	# A generated completion script asking for candidates: answer it
 	# instead of parsing.
 	if (defined $ENV{Getopt::Pad::Completion->SHELL_VARIABLE}) {
-		print Getopt::Pad::Completion->new(spec => $spec)->renderCandidates($argv, $ENV{Getopt::Pad::Completion->INDEX_VARIABLE});
+		my $candidates = Getopt::Pad::Completion->new(spec => $spec)->renderCandidates($argv, $ENV{Getopt::Pad::Completion->INDEX_VARIABLE});
+		print Getopt::Pad::Util::encodedFor(\*STDOUT, $candidates);
 		exit 0;
 	}
 
@@ -43,13 +45,13 @@ sub GetOptions(@pairs) {
 	}
 	catch ($error) {
 		if (blessed($error) && $error->isa('Getopt::Pad::ExitRequest')) {
-			print $error->output;
+			print Getopt::Pad::Util::encodedFor(\*STDOUT, $error->output);
 			exit 0;
 		}
 		die $error if !blessed($error) || !$error->isa('Getopt::Pad::Error');
 
 		my $errorTag = Getopt::Pad::Util::useColor(\*STDERR) ? "\e[1;31mERROR\e[0m" : 'ERROR';
-		print {*STDERR} sprintf("%s: %s\n", $errorTag, $error);
+		print {*STDERR} Getopt::Pad::Util::encodedFor(\*STDERR, sprintf("%s: %s\n", $errorTag, $error));
 		if (defined $error->level) {
 			print {*STDERR} "\n";
 			$spec->helperFor($error->level, handle => \*STDERR)->printHelp;
@@ -621,6 +623,7 @@ An arrayref of words to parse instead of C<@ARGV>. C<GetOptions> copies
 the words; neither C<@ARGV> nor this arrayref is modified. This is useful
 for tests (see L<Getopt::Pad::Cookbook/Testing a command line>) and for
 parsing a command line that does not come from C<@ARGV>. Top level only.
+The words are decoded like those of C<@ARGV>, see L</Encoding>.
 
 =head1 OPTION SPECS
 
@@ -1858,7 +1861,20 @@ cannot write config files>. The built-in C<yaml> and C<json> formats can.
 =head2 Encoding
 
 Config files are read and written as UTF-8. Their values are Perl
-character strings. See L</CAVEATS> for values from the command line.
+character strings.
+
+Command line words are decoded from UTF-8 as well, so a value reaches
+the reader as the same character string from either source, and a
+L</valid> list written under C<use utf8> matches both. A word that is
+decoded already (with C<perl -CA>, or by your program) is taken as it
+is, and a word that is not valid UTF-8, such as a file name in Latin-1,
+stays a byte string.
+
+Output that holds characters (the help, error messages, completion
+candidates) is printed as UTF-8, unless the handle has an encoding layer
+of its own (C<perl -CS>, or C<binmode STDOUT, ':encoding(UTF-8)'>). Text
+that is a byte string, such as a help text in a program without C<use
+utf8>, is printed as it is.
 
 =head1 AUTOMATIC OPTIONS
 
@@ -2852,22 +2868,13 @@ C<exit>. Code after the call only runs for a valid command line. To test
 a command line that should fail, run your program in a separate process;
 see L<Getopt::Pad::Cookbook/Testing a command line>.
 
-=item Command line values are not decoded
+=item Non-ASCII text in the spec needs C<use utf8>
 
-Words from the command line reach your program as Perl receives them:
-byte strings, not decoded character strings. Values from config files
-are decoded from UTF-8. For non-ASCII values the two sources then
-differ, and a C<valid> list with non-ASCII values written in a C<use
-utf8> program matches config values but not command line values. If
-your program handles non-ASCII input, decode C<@ARGV> before calling
-C<GetOptions>:
-
-=for highlighter language=perl
-
-    use Encode qw(decode);
-    @ARGV = map { decode('UTF-8', $_) } @ARGV;
-
-or run perl with the C<-CA> switch.
+Values reach your program as character strings, from the command line
+as from config files (see L</Encoding>). A non-ASCII string in the spec,
+such as an entry of a L</valid> list, must be a character string too, so
+write the spec under C<use utf8>. Without it, C<'Köln'> in the source is
+a byte string that no value matches.
 
 =item The order in the help output is alphabetical
 

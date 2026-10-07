@@ -53,6 +53,11 @@ Revision history for Getopt::Pad
           0, as from YAML, not as JSON::PP::Boolean objects
         - Errors in the structure of a config file are shown with the
           help of the command the user ran, like every other error
+        - Command line words are decoded from UTF-8 like config file
+          values, unless decoded already (perl -CA) or not valid UTF-8.
+          The help, error messages and completion candidates are printed
+          as UTF-8 unless the handle has an encoding layer. Non-ASCII
+          strings in a spec need use utf8 to match
 
 0.05    2026-10-05
         - Require Object::Pad 0.818: class methods with a signature fail

@@ -5,13 +5,40 @@ use strict;
 use warnings;
 use experimental 'signatures';
 
+use Encode ();
 use Exporter qw(import);
+use Feature::Compat::Try;
 
 our $VERSION   = '0.05';
-our @EXPORT_OK = qw(camelize specError expandTilde useColor isValidName optionSpelling processedWith scalarsIn);
+our @EXPORT_OK = qw(camelize specError expandTilde useColor isValidName optionSpelling processedWith scalarsIn decodedWord encodedFor);
 
 sub useColor($handle) {
 	return (-t $handle) && !length($ENV{NO_COLOR} // '') && (($ENV{TERM} // '') ne 'dumb') ? 1 : 0;
+}
+
+# A command line word as characters, like the values of config files. A
+# word that is decoded already (perl -CA, or a caller's own decode) is
+# taken as it is; one that is not valid UTF-8, such as a Latin-1 file
+# name, stays bytes.
+sub decodedWord($word) {
+	return $word if !defined $word || utf8::is_utf8($word) || $word !~ /[\x80-\xFF]/;
+
+	try {
+		return Encode::decode('UTF-8', $word, Encode::FB_CROAK | Encode::LEAVE_SRC);
+	}
+	catch ($error) {
+		return $word;
+	}
+}
+
+# $text as it is printed on $handle. Text holding characters is encoded
+# as UTF-8, unless the handle encodes by itself (perl -CS, an :encoding
+# layer). Byte strings, such as the help texts of a program without
+# 'use utf8', are printed as the program wrote them.
+sub encodedFor($handle, $text) {
+	return $text if !utf8::is_utf8($text);
+	return $text if grep { /\A(?:utf8|encoding)\b/ } PerlIO::get_layers($handle, output => 1);
+	return Encode::encode('UTF-8', $text);
 }
 
 sub expandTilde($path) {
@@ -130,6 +157,17 @@ C<$value> with every single value in it replaced by
 C<< $callback->($result, $single) >>; arrayrefs and hashrefs around them
 are rebuilt in the same shape. C<undef> and a missing C<$callback> leave
 the value as it is. Options and args use it for C<processValue>.
+
+=item decodedWord($word)
+
+A command line word as a character string: decoded from UTF-8 unless it
+is decoded already or is not valid UTF-8, in which case it is returned
+as it is.
+
+=item encodedFor($handle, $text)
+
+C<$text> as it is printed on C<$handle>: encoded as UTF-8 when it holds
+characters and the handle has no encoding layer, else unchanged.
 
 =item expandTilde($path)
 
