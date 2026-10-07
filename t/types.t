@@ -192,6 +192,17 @@ subtest 'custom type registration' => sub {
 		qr/option type name 'hex' is already registered by My::Test::Hex at \S*types\.t line \d+/, 'a taken name is refused, at the registering call';
 	ok lives { Getopt::Pad::Type::registerType('My::Test::Hex') }, 'registering the same class again is harmless';
 	is $registry->resolve('hex'), 'My::Test::Hex', 'the first class keeps the name';
+
+	package My::Test::Nameless {
+		use Object::Pad;
+		use Getopt::Pad::Type;
+
+		class My::Test::Nameless :isa(Getopt::Pad::Type) {
+			method glSuffix() { return '=s' }
+		}
+	}
+	like dies { Getopt::Pad::Type::registerType('My::Test::Nameless') },
+		qr/option type class My::Test::Nameless does not provide a NAMES list/, 'a defined class without NAMES is reported as such, not as a missing file';
 };
 
 done_testing;

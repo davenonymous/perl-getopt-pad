@@ -26,6 +26,9 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	field $auto          :param :reader = 0;
 	field $optionalValue :param :reader = 0;
 	field $trigger       :param :reader = undef;
+	# Where the option sits in the spec, as the start of a spec error, e.g.
+	# "command 'image resize': ".
+	field $where         :param = '';
 
 	field $name     :reader;
 	field @aliases  :reader;
@@ -50,19 +53,19 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	field $typehint   :reader;
 
 	ADJUST {
-		specError("option key must be a non-empty string") if !defined $key || $key eq '';
-		specError("option '%s': spec must be a hash reference", $key) if ref $raw ne 'HASH';
-		specError("option '%s': a trigger is only allowed on auto options", $key) if defined $trigger && !$auto;
+		specError("%soption key must be a non-empty string", $where) if !defined $key || $key eq '';
+		specError("%soption '%s': spec must be a hash reference", $where, $key) if ref $raw ne 'HASH';
+		specError("%soption '%s': a trigger is only allowed on auto options", $where, $key) if defined $trigger && !$auto;
 
 		($name, @aliases) = split /\|/, $key, -1;
 		foreach my $candidate ($name, @aliases) {
-			specError("option '%s': invalid name '%s'", $key, $candidate // '') if !isValidName($candidate);
+			specError("%soption '%s': invalid name '%s'", $where, $key, $candidate // '') if !isValidName($candidate);
 		}
 		$reader = camelize($name);
-		specError("option '%s': reader '%s' collides with a built-in result method", $name, $reader) if !$auto && Getopt::Pad::Result->reservesReader($reader);
+		specError("%soption '%s': reader '%s' collides with a built-in result method", $where, $name, $reader) if !$auto && Getopt::Pad::Result->reservesReader($reader);
 
 		my %spec = $raw->%*;
-		($type, $typeName) = Getopt::Pad::Type::takeFromSpec(\%spec, 'flag', sprintf("option '%s'", $name));
+		($type, $typeName) = Getopt::Pad::Type::takeFromSpec(\%spec, 'flag', sprintf("%soption '%s'", $where, $name));
 
 		$required = delete $spec{required} ? 1 : 0;
 		if (exists $spec{default}) {
@@ -83,17 +86,17 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		$inherit    = delete $spec{inherit} ? 1 : 0;
 		$typehint   = delete $spec{typehint};
 
-		specError("option '%s': unknown key(s): %s", $name, join(', ', sort keys %spec)) if %spec;
-		specError("option '%s': required and default are mutually exclusive", $name) if $required && $hasDefault;
+		specError("%soption '%s': unknown key(s): %s", $where, $name, join(', ', sort keys %spec)) if %spec;
+		specError("%soption '%s': required and default are mutually exclusive", $where, $name) if $required && $hasDefault;
 		my %shapeFlags = (multiple => $multiple, hash => $hash, objectlist => $objectlist);
 		my @shapes     = grep { $shapeFlags{$_} } qw(multiple hash objectlist);
-		specError("option '%s': %s requires a value-taking type, not '%s'", $name, $shapes[0], $typeName) if @shapes && !$type->takesValue;
-		specError("option '%s': %s are mutually exclusive", $name, join(' and ', @shapes)) if @shapes > 1;
-		specError("option '%s': csv requires multiple", $name) if $csv && !$multiple;
-		specError("option '%s': valid must be an array or code reference", $name) if defined $valid && ref $valid ne 'ARRAY' && ref $valid ne 'CODE';
-		specError("option '%s': lazyValid must be a code reference", $name) if defined $lazyValid && ref $lazyValid ne 'CODE';
-		specError("option '%s': processValue must be a code reference", $name) if defined $processValue && ref $processValue ne 'CODE';
-		specError("option '%s': typehint must be a non-empty string", $name) if defined $typehint && (ref $typehint || $typehint eq '');
+		specError("%soption '%s': %s requires a value-taking type, not '%s'", $where, $name, $shapes[0], $typeName) if @shapes && !$type->takesValue;
+		specError("%soption '%s': %s are mutually exclusive", $where, $name, join(' and ', @shapes)) if @shapes > 1;
+		specError("%soption '%s': csv requires multiple", $where, $name) if $csv && !$multiple;
+		specError("%soption '%s': valid must be an array or code reference", $where, $name) if defined $valid && ref $valid ne 'ARRAY' && ref $valid ne 'CODE';
+		specError("%soption '%s': lazyValid must be a code reference", $where, $name) if defined $lazyValid && ref $lazyValid ne 'CODE';
+		specError("%soption '%s': processValue must be a code reference", $where, $name) if defined $processValue && ref $processValue ne 'CODE';
+		specError("%soption '%s': typehint must be a non-empty string", $where, $name) if defined $typehint && (ref $typehint || $typehint eq '');
 
 		$default = $self->checkedDefault($default) if $hasDefault;
 	}
@@ -103,7 +106,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	# to the help output.
 	method checkedDefault($value) {
 		return undef if !defined $value && !$multiple && !$hash && !$objectlist;
-		return $self->shapedValue($value, sub ($problem) { specError("option '%s': default value: %s", $name, $problem) });
+		return $self->shapedValue($value, sub ($problem) { specError("%soption '%s': default value: %s", $where, $name, $problem) });
 	}
 
 	# The default as help output and config files show it: as the spec
@@ -146,7 +149,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		return $valid->@* if ref $valid eq 'ARRAY';
 
 		my $values = $valid->();
-		specError("option '%s': the valid coderef must return an array reference", $name) if ref $values ne 'ARRAY';
+		specError("%soption '%s': the valid coderef must return an array reference", $where, $name) if ref $values ne 'ARRAY';
 		return $values->@*;
 	}
 
@@ -337,7 +340,10 @@ documented in L<Getopt::Pad/OPTION SPECS>.
 The constructor checks every key and their combinations, and checks and
 converts the default in the option's shape: a list for C<multiple>, a
 mapping for C<hash>, a list of mappings for C<objectlist>, else a single
-value. An invalid default is a spec error.
+value. An invalid default is a spec error. Spec errors start with the
+optional C<where> constructor param, which the declaring
+L<Getopt::Pad::Spec::Level> sets to its command path
+(C<command 'image resize': >).
 
 =head2 Resolving a value
 

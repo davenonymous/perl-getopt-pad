@@ -176,9 +176,9 @@ of C<GetOptions> unchanged.
     Getopt::Pad::Config::Format::registerFormat('My::Format::Toml');
 
 Registers a format class under the names in its L</NAMES> constant, for
-all specs in the program. The argument is the class name. If the class has
-no C<NAMES> method yet, which usually means that its module is not
-loaded, its module file is loaded first (for example
+all specs in the program. The argument is the class name. If the class is
+not defined yet (it has no C<new> method), its module file is loaded
+first (for example
 F<My/Format/Toml.pm> from C<@INC>).
 
 It dies when a name is already registered by another class, with

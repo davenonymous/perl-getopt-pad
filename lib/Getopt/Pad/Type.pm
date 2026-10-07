@@ -30,7 +30,7 @@ sub registerType($class) {
 # resolved under.
 sub takeFromSpec($spec, $defaultName, $owner) {
 	my $typeName  = delete $spec->{type} // $defaultName;
-	my $typeClass = registry()->resolve($typeName);
+	my $typeClass = registry()->resolve($typeName, $owner);
 	my @typeKeys  = $typeClass->can('SPEC_KEYS') ? $typeClass->SPEC_KEYS->@* : ();
 	my %typeArgs  = map { $_ => delete $spec->{$_} } grep { exists $spec->{$_} } @typeKeys;
 
@@ -451,8 +451,8 @@ C<GetOptions> builds the spec; a problem there is a spec error.
 
 Registers a type class under the names in its L</NAMES> constant, for all
 specs in the program. The argument is the class name. If the class
-has no C<NAMES> method yet, which usually means that its module is not
-loaded, its module file is loaded first (for example
+is not defined yet (it has no C<new> method), its module file is loaded
+first (for example
 F<My/Type/Duration.pm> from C<@INC>). So a type in its own module file
 needs no separate C<use>.
 

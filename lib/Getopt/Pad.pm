@@ -20,7 +20,10 @@ use Getopt::Pad::ExitRequest;
 our $VERSION = '0.05';
 our @EXPORT  = qw(GetOptions);
 
-sub GetOptions(%raw) {
+sub GetOptions(@pairs) {
+	Getopt::Pad::Util::specError('GetOptions expects key/value pairs') if @pairs % 2;
+
+	my %raw  = @pairs;
 	my $argv = delete $raw{argv} // [@ARGV];
 	Getopt::Pad::Util::specError("'argv' must be an array reference") if ref $argv ne 'ARRAY';
 
@@ -2147,8 +2150,7 @@ uses. These names are a spec error: C<command>, C<subcommand>, C<help>,
 C<version>, C<helper>, C<reservesReader>, C<new>, C<can>, C<isa>,
 C<DOES>, C<VERSION>, C<META>, C<BUILDARGS>, C<DESTROY> and C<AUTOLOAD>
 (C<helper> and C<reservesReader> are internals of the result class).
-Currently C<croak> is rejected as well, which is a known bug. The error
-message is C<reader 'NAME' collides with a built-in result method>.
+The error message is C<reader 'NAME' collides with a built-in result method>.
 
 Aliases have no readers, so they may use these names, except C<help>
 (on every level) and C<version> (on the top level), which are automatic
@@ -2189,16 +2191,12 @@ and ends with the file and line of your C<GetOptions> call, for example:
 
     Getopt::Pad spec: option 'keep': default value: 'seven' is not an integer at backup line 11.
 
-Messages from the checks of a command's level start with the command
-path, such as C<Getopt::Pad spec: command 'image resize': ...>. These
-include the checks between the options and args of that level: duplicate
-names and aliases, reader clashes, the order of args and C<inherit>.
-Messages about the keys of one option or arg spec (unknown keys, type,
-default, bounds, C<valid>, C<typehint>) name only the option or arg, not
-the command, and C<unknown option type> names neither. C<GetOptions>
-checks the complete spec on every call, including all commands, before it looks
-at the command line, so a broken spec fails on the first run, whatever
-the command line is. The exception is an error raised by a L</valid>
+Messages about a command's level, and about the options and args
+declared on it, start with the command path, such as
+C<Getopt::Pad spec: command 'image resize': option 'width': ...>.
+C<GetOptions> checks the complete spec on every call, including all
+commands, before it looks at the command line, so a broken spec fails on
+the first run, whatever the command line is. The exception is an error raised by a L</valid>
 coderef that returns something other than an arrayref, which is only
 noticed when the coderef is called.
 
@@ -2224,10 +2222,7 @@ After a user error.
 
 C<GetOptions> itself never exits with any other status. When it returns,
 your program continues normally. A spec error is an uncaught C<die>,
-which ends the program with a non-zero status chosen by Perl from C<$!>
-or C<$?> (see L<perlfunc/die>): usually 255, but it can be any value,
-including 2. Do not use the exit status to tell spec errors from user
-errors.
+which ends the program with status 255.
 
 =head1 DIAGNOSTICS
 
@@ -2500,9 +2495,8 @@ The format has no C<dump> method, see L<Getopt::Pad::Config::Format>.
 =head2 Spec error messages
 
 These make C<GetOptions> die with C<Getopt::Pad spec: MESSAGE at FILE
-line LINE.> Messages from the checks of a command's level start with
-C<command 'PATH': >; messages about the keys of a single option or arg
-spec do not name the command.
+line LINE.> Messages about a command's level and the options and args
+declared on it start with C<command 'PATH': >.
 
 =over 4
 
@@ -2530,6 +2524,12 @@ in a command spec, or C<min> for a C<string> option).
 =item each example must be a hash with 'text' and 'args'
 
 A spec key has the wrong kind of value.
+
+=item GetOptions expects key/value pairs
+
+C<GetOptions> was called with an odd number of arguments. Usually a
+value is missing, or the spec was passed as a hashref
+(C<GetOptions($spec)> instead of C<GetOptions(%$spec)>).
 
 =item option 'KEY': spec must be a hash reference
 
@@ -2576,7 +2576,9 @@ L</AUTOMATIC OPTIONS>. For an option whose primary name is C<help> or
 C<version>, the message is C<reader 'NAME' collides with a built-in
 result method> instead.
 
-=item unknown option type 'TYPE' (known: NAMES)
+=item option 'NAME': unknown option type 'TYPE' (known: NAMES)
+
+=item arg 'NAME': unknown option type 'TYPE' (known: NAMES)
 
 See L</TYPES>.
 
@@ -2677,12 +2679,6 @@ point at a mistake in the program.
 
 =over 4
 
-=item Odd name/value argument for subroutine 'Getopt::Pad::GetOptions'
-
-Perl's own message: C<GetOptions> was called with an odd number of
-arguments. Usually a value is missing, or the spec was passed as a
-hashref (C<GetOptions($spec)> instead of C<GetOptions(%$spec)>).
-
 =item Getopt::Pad: option type name 'NAME' is already registered by CLASS
 
 =item Getopt::Pad: config format name 'NAME' is already registered by CLASS
@@ -2695,10 +2691,10 @@ L<Getopt::Pad::Config::Format>.
 
 =item Getopt::Pad: config format class CLASS does not provide a NAMES list
 
-The registered class has no C<NAMES> constant. Before this check, the
-class's module file is loaded, so if the class is defined in the script
-itself, the message can be C<Can't locate My/Type/Foo.pm in @INC ...>
-(for the class C<My::Type::Foo>) instead.
+The registered class has no C<NAMES> constant. A class that is not
+defined yet has its module file loaded first, so a misspelled class name
+gives C<Can't locate My/Type/Foo.pm in @INC ...> (for the class
+C<My::Type::Foo>) instead.
 
 =item Getopt::Pad: no help renderer attached to this result
 

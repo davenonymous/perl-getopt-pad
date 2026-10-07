@@ -45,15 +45,20 @@ subtest 'spec errors are programmer errors, not usage errors' => sub {
 	my ($exit, $stdout, $stderr) = runScript(
 		'GetOptions(options => { owner => { type => q(bogus) } });',
 	);
-	isnt $exit, 0, 'non-zero exit';
-	isnt $exit, 2, 'not the usage-error exit code';
-	like $stderr, qr/Getopt::Pad spec: unknown option type 'bogus'/, 'spec error message visible';
+	is $exit, 255, 'exit 255, not the usage-error exit code';
+	like $stderr, qr/Getopt::Pad spec: option 'owner': unknown option type 'bogus'/, 'spec error message visible';
 	like $stderr, qr/ at -e line 1\.$/m, 'location is the GetOptions call, not the library';
 
 	(undef, undef, my $nestedError) = runScript(
 		'GetOptions(commands => { doc => { options => { retries => { type => q(i), default => q(three) } } } });',
 	);
 	like $nestedError, qr/default value: 'three' is not an integer at -e line 1\.$/m, 'nested spec error located at the call as well';
+
+	my ($errnoExit) = runScript('GetOptions(options => { owner => { type => q(s), valid => sub { $! = 2; q(none) } } }, argv => [qw(--owner a)]);');
+	is $errnoExit, 255, 'a $! set before the spec error does not change the exit status';
+
+	(undef, undef, my $oddError) = runScript('GetOptions(options => {}, q(argv));');
+	like $oddError, qr/^Getopt::Pad spec: GetOptions expects key\/value pairs at -e line 1\.$/m, 'an odd argument list is a spec error';
 };
 
 done_testing;

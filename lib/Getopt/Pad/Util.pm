@@ -52,6 +52,10 @@ sub specError($format, @args) {
 	my $frame = 0;
 	$frame++ while (caller($frame + 1))[0] && (caller($frame))[0] =~ /\AGetopt::Pad(?:::|\z)/;
 	my (undef, $file, $line) = caller($frame);
+
+	# An uncaught die exits with $! or $? when either is set; clearing both
+	# makes every spec error end the program with status 255.
+	($!, $?) = (0, 0);
 	die sprintf("Getopt::Pad spec: %s at %s line %d.\n", sprintf($format, @args), $file, $line);
 }
 
@@ -93,7 +97,8 @@ a letter, followed by word characters or dashes.
 
 Dies with C<Getopt::Pad spec: MESSAGE at FILE line LINE.>, where FILE and
 LINE are those of the first caller outside Getopt::Pad, normally the
-C<GetOptions> call.
+C<GetOptions> call. C<$!> and C<$?> are cleared first, so an uncaught
+spec error exits with status 255.
 
 =item processedWith($callback, $result, $value)
 

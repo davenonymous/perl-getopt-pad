@@ -2,7 +2,9 @@ use v5.26;
 use Object::Pad qw(:experimental(mop));
 
 class Getopt::Pad::Result {
-	use Carp qw(croak);
+	# Carp is called fully qualified: an imported croak would be a method
+	# of every Result and reserve its name for no reason.
+	use Carp ();
 
 	our $VERSION = '0.05';
 
@@ -26,13 +28,13 @@ class Getopt::Pad::Result {
 	}
 
 	method help() {
-		croak 'Getopt::Pad: no help renderer attached to this result' unless defined $helper;
+		Carp::croak('Getopt::Pad: no help renderer attached to this result') unless defined $helper;
 		$helper->printHelp;
 		exit 0;
 	}
 
 	method version() {
-		croak 'Getopt::Pad: no help renderer attached to this result' unless defined $helper;
+		Carp::croak('Getopt::Pad: no help renderer attached to this result') unless defined $helper;
 		$helper->printVersion;
 		exit 0;
 	}
