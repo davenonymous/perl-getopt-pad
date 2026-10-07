@@ -241,6 +241,13 @@ subtest 'json format and format errors' => sub {
 	is $plain->tag, [0, 'x'], 'booleans inside lists become plain values too';
 	is parseWith([], options => { flag => {} }, config => { format => 'json', paths => [writeFile("$dir/flag.json", '{"Options": {"flag": true}}')] })->flag, 1, 'flags still take booleans';
 
+	my $bigJson = writeFile("$dir/big.json", '{"Options": {"id": 123456789012345678901234567890, "ratio": 0.1}}');
+	my $big     = parseWith([], options => { id => { type => 'int', bigint => 1 }, ratio => { type => 'float' } }, config => { format => 'json', paths => [$bigJson] });
+	is $big->id->bstr, '123456789012345678901234567890', 'a large JSON integer reaches a bigint option exactly';
+	is $big->ratio, 0.1, 'other JSON numbers read as before';
+	like dies { parseWith([], options => { id => { type => 'int' }, ratio => { type => 'float' } }, config => { format => 'json', paths => [$bigJson] }) },
+		qr/config value for 'id': '123456789012345678901234567890' is too large for an integer/, 'without bigint it is too large, not a rounded float';
+
 	foreach my $empty (['empty.json', 'json', ''], ['blank.json', 'json', " \n"], ['empty.yaml', 'yaml', ''], ['comments.yaml', 'yaml', "# nothing set yet\n"]) {
 		my ($name, $format, $content) = $empty->@*;
 		my $path = writeFile("$dir/$name", $content);

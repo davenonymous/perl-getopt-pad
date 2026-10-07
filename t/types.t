@@ -72,6 +72,15 @@ subtest 'int' => sub {
 	like $wide->check($largest->copy->binc->bstr), qr/is too large for an integer/, 'one past the largest integer';
 	like $wide->check($smallest->copy->bdec->bstr), qr/is too large for an integer/, 'one past the smallest';
 	like $wide->check('9' x 400), qr/is too large for an integer/, 'a value that would read as Inf';
+
+	my $huge = '123456789012345678901234567890';
+	my $big  = Getopt::Pad::Type::Int->new(bigint => 1, min => '100000000000000000001');
+	is $big->check($huge), undef, 'bigint accepts any size';
+	isa_ok $big->coerce('+007'), ['Math::BigInt'], 'and converts to a Math::BigInt';
+	is $big->coerce($huge)->bstr, $huge, 'exactly';
+	is $big->check('100000000000000000000'), '100000000000000000000 is smaller than the minimum of 100000000000000000001', 'bounds compare exactly';
+	like $big->check('1.5'), qr/is not an integer/, 'it still takes integers only';
+	is Getopt::Pad::Type::Int->checkSpecKeys(bigint => 1, max => '1e3'), "max must be an integer with bigint, not '1e3'", 'bigint bounds must be integers';
 };
 
 subtest 'float' => sub {

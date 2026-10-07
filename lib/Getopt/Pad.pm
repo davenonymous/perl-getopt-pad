@@ -387,6 +387,7 @@ L</description>, L</examples>, L</config>, L</version> and L</argv>.
     inherit              boolean                false      levels with commands only
     typehint             string                 type's     label shown in the help
     min, max             number                 none       int and float only
+    bigint               boolean                false      int only
     mustExist            boolean                false      file and dir only
     createPathIfMissing  boolean                false      file and dir only
     timezone             time zone name         'local'    date and duration only
@@ -408,6 +409,7 @@ other. C<mustExist> and C<createPathIfMissing> exclude each other.
     typehint             string     type's     label shown in the help
     processValue         coderef    none       converts each value
     min, max             number     none       int and float only
+    bigint               boolean    false      int only
     mustExist            boolean    false      file and dir only
     createPathIfMissing  boolean    false      file and dir only
     timezone             zone name  'local'    date and duration only
@@ -1026,6 +1028,19 @@ inclusive. Values outside are user errors (C<5 is smaller than the
 minimum of 10>). Both must be numbers and C<min> must not be larger than
 C<max>, or the spec is invalid.
 
+=item bigint
+
+=for highlighter language=perl
+
+    id => { type => 'int', bigint => 1 },
+
+For C<int>. The reader returns a L<Math::BigInt> object instead of a
+Perl number, so integers of any size are accepted and kept exactly,
+such as C<123456789012345678901234567890>. The bounds L</min, max> are
+compared exactly and must be integers themselves (C<min must be an
+integer with bigint, not '1.5'>). Large integers in JSON config files
+reach the option exactly as well.
+
 =item mustExist
 
 For C<file> and C<dir>. The path must exist when the command line is
@@ -1188,13 +1203,14 @@ Any value. The reader returns it unchanged.
 
 =head2 int
 
-Names: C<int>, C<integer>, C<i>. Keys: L</min, max>.
+Names: C<int>, C<integer>, C<i>. Keys: L</min, max>, L</bigint>.
 
 An integer: optional C<+> or C<->, followed by decimal digits (C<42>,
 C<-7>, C<+3>, C<007>). The reader returns a number (C<007> reads as 7).
 Other values are the user error C<'VALUE' is not an integer>. A value
 outside the range of Perl's integers (from -2**63 to 2**64-1 on a 64-bit
-perl) is the user error C<'VALUE' is too large for an integer>.
+perl) is the user error C<'VALUE' is too large for an integer>, unless
+the option has L</bigint>.
 
 =head2 float
 
@@ -2350,7 +2366,8 @@ The value of an C<int> or C<float> option is not a number of that kind.
 
 =item 'VALUE' is too large for an integer
 
-An C<int> value outside the range of Perl's integers.
+An C<int> value outside the range of Perl's integers. The option needs
+L</bigint> to accept it.
 
 =item 'VALUE' is not a finite number
 
@@ -2672,6 +2689,10 @@ The default failed a check, see L</Value problems>.
 =item option 'NAME': max must be a number, not 'VALUE'
 
 =item option 'NAME': min MIN is larger than max MAX
+
+=item option 'NAME': min must be an integer with bigint, not 'VALUE'
+
+=item option 'NAME': max must be an integer with bigint, not 'VALUE'
 
 (For args, these and the other messages about one arg start with
 C<arg 'NAME':> instead.)

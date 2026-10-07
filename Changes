@@ -37,6 +37,9 @@ Revision history for Getopt::Pad
           as not finite instead of reading as Inf
         - An int value outside Perl's integer range is rejected as too
           large instead of reading as a rounded float or Inf
+        - Add bigint to int options and args: the reader returns a
+          Math::BigInt, so integers of any size are kept exactly. JSON
+          config files hand large integers over unrounded
         - mustExist is checked only on the path a parse settles on: a
           default missing on the user's machine is no longer a spec
           error, and is a user error only when the parse uses it
