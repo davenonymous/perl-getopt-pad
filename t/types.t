@@ -3,6 +3,7 @@ use Test2::V0;
 
 use File::Temp qw(tempdir);
 use JSON::PP ();
+use Math::BigInt;
 use Getopt::Pad::Type;
 use Getopt::Pad::Spec;
 
@@ -62,6 +63,15 @@ subtest 'int' => sub {
 	is $int->coerce('05'), 5,                                       'coerced to number';
 	is $int->check("5\n"), "'5\n' is not an integer",                'trailing newline rejected';
 	is $int->check("\x{663}"), "'\x{663}' is not an integer",        'non-ASCII digits rejected';
+
+	# The integer range of this perl, and one past each end.
+	my $largest  = Math::BigInt->new(~0);
+	my $smallest = Math::BigInt->new(-(~0 >> 1))->bdec;
+	my $wide     = Getopt::Pad::Type::Int->new;
+	is $wide->check($_), undef, sprintf('%s fits', $_) foreach qw(-0 +007 -007), $largest->bstr, $smallest->bstr;
+	like $wide->check($largest->copy->binc->bstr), qr/is too large for an integer/, 'one past the largest integer';
+	like $wide->check($smallest->copy->bdec->bstr), qr/is too large for an integer/, 'one past the smallest';
+	like $wide->check('9' x 400), qr/is too large for an integer/, 'a value that would read as Inf';
 };
 
 subtest 'float' => sub {

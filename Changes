@@ -35,6 +35,8 @@ Revision history for Getopt::Pad
           the gap below it is reported
         - A float value too large for a Perl number (1e999) is rejected
           as not finite instead of reading as Inf
+        - An int value outside Perl's integer range is rejected as too
+          large instead of reading as a rounded float or Inf
         - mustExist is checked only on the path a parse settles on: a
           default missing on the user's machine is no longer a spec
           error, and is a user error only when the parse uses it

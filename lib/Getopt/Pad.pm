@@ -1192,7 +1192,9 @@ Names: C<int>, C<integer>, C<i>. Keys: L</min, max>.
 
 An integer: optional C<+> or C<->, followed by decimal digits (C<42>,
 C<-7>, C<+3>, C<007>). The reader returns a number (C<007> reads as 7).
-Other values are the user error C<'VALUE' is not an integer>.
+Other values are the user error C<'VALUE' is not an integer>. A value
+outside the range of Perl's integers (from -2**63 to 2**64-1 on a 64-bit
+perl) is the user error C<'VALUE' is too large for an integer>.
 
 =head2 float
 
@@ -2345,6 +2347,10 @@ PROBLEM>.
 =item 'VALUE' is not a number
 
 The value of an C<int> or C<float> option is not a number of that kind.
+
+=item 'VALUE' is too large for an integer
+
+An C<int> value outside the range of Perl's integers.
 
 =item 'VALUE' is not a finite number
 
