@@ -239,7 +239,7 @@ keys.
 
 =for highlighter language=perl
 
-    use constant NAMES => ['duration', 'dur'];
+    use constant NAMES => ['seconds', 'secs'];
 
 Required. A constant that returns an arrayref of the names the type
 answers to in the C<type> key of an option or arg spec. Names are matched
@@ -468,13 +468,13 @@ C<GetOptions> builds the spec; a problem there is a spec error.
 
 =for highlighter language=perl
 
-    Getopt::Pad::Type::registerType('My::Type::Duration');
+    Getopt::Pad::Type::registerType('My::Type::Seconds');
 
 Registers a type class under the names in its L</NAMES> constant, for all
 specs in the program. The argument is the class name. If the class
 is not defined yet (it has no C<new> method), its module file is loaded
 first (for example
-F<My/Type/Duration.pm> from C<@INC>). So a type in its own module file
+F<My/Type/Seconds.pm> from C<@INC>). So a type in its own module file
 needs no separate C<use>.
 
 It dies when a name is already registered by another class, with
@@ -500,8 +500,8 @@ limit:
     use Getopt::Pad;
     use Getopt::Pad::Type;
 
-    class My::Type::Duration :isa(Getopt::Pad::Type) {
-        use constant NAMES     => ['duration'];
+    class My::Type::Seconds :isa(Getopt::Pad::Type) {
+        use constant NAMES     => ['seconds'];
         use constant SPEC_KEYS => ['maxSeconds'];
 
         my %secondsPer = (s => 1, m => 60, h => 3600, d => 86400);
@@ -536,12 +536,12 @@ limit:
         }
     }
 
-    Getopt::Pad::Type::registerType('My::Type::Duration');
+    Getopt::Pad::Type::registerType('My::Type::Seconds');
 
     my $opt = GetOptions(
         options => {
             timeout => {
-                type       => 'duration',
+                type       => 'seconds',
                 default    => '30s',
                 maxSeconds => 3600,
                 help       => 'How long to wait',
