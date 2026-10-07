@@ -7,7 +7,7 @@ use Getopt::Pad::Result;
 class Getopt::Pad::Spec::Arg :strict(params) {
 	use Getopt::Pad::Util qw(camelize specError isValidName processedWith);
 
-	our $VERSION = '0.05';
+	our $VERSION = '0.06';
 
 	field $raw   :param;
 	# Where the arg sits in the spec, as the start of a spec error, e.g.

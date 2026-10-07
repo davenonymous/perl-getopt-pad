@@ -6,7 +6,7 @@ use Getopt::Pad::Type;
 class Getopt::Pad::Type::Temporal :isa(Getopt::Pad::Type) :abstract {
 	use Feature::Compat::Try;
 
-	our $VERSION = '0.05';
+	our $VERSION = '0.06';
 
 	use constant SPEC_KEYS => ['timezone'];
 

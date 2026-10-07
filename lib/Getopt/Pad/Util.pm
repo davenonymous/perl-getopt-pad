@@ -9,7 +9,7 @@ use Encode ();
 use Exporter qw(import);
 use Feature::Compat::Try;
 
-our $VERSION   = '0.05';
+our $VERSION   = '0.06';
 our @EXPORT_OK = qw(camelize specError expandTilde useColor isValidName optionSpelling processedWith scalarsIn decodedWord encodedFor);
 
 sub useColor($handle) {

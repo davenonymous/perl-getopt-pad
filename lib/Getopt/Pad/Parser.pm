@@ -10,7 +10,7 @@ class Getopt::Pad::Parser :strict(params) {
 	use Scalar::Util ();
 	use Getopt::Pad::Util qw(scalarsIn);
 
-	our $VERSION = '0.05';
+	our $VERSION = '0.06';
 
 	field $spec :param;
 	field $argv :param;

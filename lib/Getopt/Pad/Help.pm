@@ -8,7 +8,7 @@ class Getopt::Pad::Help :strict(params) {
 	use Getopt::Pad::Util qw(useColor optionSpelling encodedFor);
 	use Text::Wrap ();
 
-	our $VERSION = '0.05';
+	our $VERSION = '0.06';
 
 	field $level       :param;
 	field $version     :param = undef;

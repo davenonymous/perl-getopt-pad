@@ -6,7 +6,7 @@ use Getopt::Pad::Type::Temporal;
 class Getopt::Pad::Type::Date :isa(Getopt::Pad::Type::Temporal) :strict(params) {
 	use constant NAMES => ['date'];
 
-	our $VERSION = '0.05';
+	our $VERSION = '0.06';
 
 	field $parser;
 

@@ -6,7 +6,7 @@ class Getopt::Pad::Result {
 	# of every Result and reserve its name for no reason.
 	use Carp ();
 
-	our $VERSION = '0.05';
+	our $VERSION = '0.06';
 
 	# Names Perl looks up on an object by itself; a Reader by one of these
 	# would run at the wrong time with the wrong arguments.

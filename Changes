@@ -1,6 +1,6 @@
 Revision history for Getopt::Pad
 
-0.06    (unreleased)
+0.06    2026-10-07
         - Add processValue to option and arg specs: a coderef called
           with the level's result object and each value it was set to,
           whose return value replaces it, e.g. to wrap a path in an

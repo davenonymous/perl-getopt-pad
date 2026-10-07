@@ -9,7 +9,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	use Carp qw(croak);
 	use Getopt::Pad::Util qw(camelize specError isValidName optionSpelling processedWith);
 
-	our $VERSION = '0.05';
+	our $VERSION = '0.06';
 
 	# The Value sources a parse hands over, in order of precedence, each with
 	# the wording of its user errors, which name the option as typed on the

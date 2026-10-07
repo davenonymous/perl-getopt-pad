@@ -7,7 +7,7 @@ class Getopt::Pad::Type::Int :isa(Getopt::Pad::Type::Number) :strict(params) {
 	use constant NAMES     => ['i', 'int', 'integer'];
 	use constant SPEC_KEYS => ['min', 'max', 'bigint'];
 
-	our $VERSION = '0.05';
+	our $VERSION = '0.06';
 
 	field $bigint :param :reader = 0;
 
