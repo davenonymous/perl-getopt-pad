@@ -35,12 +35,14 @@ verb, action
 
 **Primary name**:
 The first name in a pipe-separated Option key (`'owner|o'` -> `owner`). It
-alone defines the Reader name and the help entry.
+alone defines the Reader name and names the Option in messages; the help
+entry lists it first.
 _Avoid_: canonical name, main name
 
 **Alias**:
-Any name after the first in a pipe-separated Option key. Parsed, never shown
-as the Option's identity.
+Any name after the first in a pipe-separated Option key. Parsed, and listed
+after the Primary name in the help entry, but never used as the Option's
+identity.
 _Avoid_: short name, abbreviation
 
 **Group**:

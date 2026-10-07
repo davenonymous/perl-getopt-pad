@@ -7,17 +7,18 @@ use Getopt::Pad::Result;
 
 class Getopt::Pad::Spec::Option :strict(params) {
 	use Carp qw(croak);
-	use Getopt::Pad::Util qw(camelize specError isValidName processedWith);
+	use Getopt::Pad::Util qw(camelize specError isValidName optionSpelling processedWith);
 
 	our $VERSION = '0.05';
 
 	# The Value sources a parse hands over, in order of precedence, each with
-	# the wording of its user errors; the spec default follows them. The
-	# command line gives a multiple option one word per occurrence, a config
-	# file a lone value or a list.
+	# the wording of its user errors, which name the option as typed on the
+	# command line and by its Primary name in a config file; the spec
+	# default follows them. The command line gives a multiple option one
+	# word per occurrence, a config file a lone value or a list.
 	my @valueSources = (
-		{ key => 'commandLine', problemFormat => "option '--%s': %s",           givesWords => 1 },
-		{ key => 'config',      problemFormat => "config value for '%s': %s", givesWords => 0 },
+		{ key => 'commandLine', problemFormat => "option '%s': %s",           givesWords => 1, namesAsTyped => 1 },
+		{ key => 'config',      problemFormat => "config value for '%s': %s", givesWords => 0, namesAsTyped => 0 },
 	);
 	my %isValueSource = map { $_->{key} => 1 } @valueSources;
 
@@ -110,9 +111,15 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	}
 
 	# The default as help output and config files show it: as the spec
-	# wrote it for a Type whose values are objects, else checked.
+	# wrote it. A converted value may not read back (a duration coerced to
+	# seconds), or be an object that cannot be shown at all.
 	method presentedDefault() {
-		return $type->presentsAsGiven ? $specDefault : $default;
+		return $specDefault;
+	}
+
+	# The Primary name as it is typed on the command line.
+	method spelling() {
+		return optionSpelling($name);
 	}
 
 	# What the reader gets when no value source set the option and the spec
@@ -186,7 +193,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 		}
 
 		return $self->preparedValue($self->copiedDefault) if $hasDefault;
-		Getopt::Pad::Error->throw("missing required option '--%s'", $name) if $required;
+		Getopt::Pad::Error->throw("missing required option '%s'", $self->spelling) if $required;
 		return $self->emptyValue;
 	}
 
@@ -196,7 +203,7 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	method preparedValue($value) {
 		foreach my $scalar ($self->scalarsOf($value)) {
 			my $problem = $type->prepare($scalar);
-			Getopt::Pad::Error->throw("option '--%s': %s", $name, $problem) if defined $problem;
+			Getopt::Pad::Error->throw("option '%s': %s", $self->spelling, $problem) if defined $problem;
 		}
 		return $value;
 	}
@@ -216,7 +223,8 @@ class Getopt::Pad::Spec::Option :strict(params) {
 	# option its words and a pair-taking option a flat mapping of its
 	# key=value pairs; a config file gives the shape directly.
 	method validatedValue($value, $source) {
-		my $report = sub ($problem) { Getopt::Pad::Error->throw($source->{problemFormat}, $name, $problem) };
+		my $named  = $source->{namesAsTyped} ? $self->spelling : $name;
+		my $report = sub ($problem) { Getopt::Pad::Error->throw($source->{problemFormat}, $named, $problem) };
 		return [map { $self->checkedScalar($_, $report) } $self->listItems($value, $source, $report)] if $multiple;
 		$value = $self->objectsFromPairs($value, $report) if $objectlist && $source->{givesWords};
 		return $self->shapedValue($value, $report);
@@ -411,9 +419,14 @@ The tag the help output shows: C<typehint>, or the type's C<label>.
 =item presentedDefault
 
 The default as the help output and C<--create-default-config> show it:
-as the spec wrote it when the type's C<presentsAsGiven> is true (the
-C<date> and C<duration> types, whose values are objects), else
-C<default>.
+as the spec wrote it, unchecked and unconverted. A converted value may
+not read back in (a duration converted to seconds) or be an object.
+
+=item spelling
+
+The primary name as it is typed: with one dash for a name of one letter
+(C<-v>), else with two (C<--verbose>). Command line errors name the
+option this way.
 
 =item takesPairs
 

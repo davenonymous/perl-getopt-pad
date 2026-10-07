@@ -57,10 +57,6 @@ class Getopt::Pad::Type::Temporal :isa(Getopt::Pad::Type) :abstract {
 
 	method glSuffix() { return '=s' }
 
-	# Help output and config files show 'tomorrow' as written, not the
-	# DateTime it meant when the spec was built.
-	method presentsAsGiven() { return 1 }
-
 	method newParser(%options) {
 		return DateTime::Format::Natural->new(time_zone => $zone, %options);
 	}
@@ -99,9 +95,9 @@ A type constructed directly, outside a spec, loads
 DateTime::Format::Natural when it is constructed and dies with Perl's
 own message if the module is missing.
 
-Values are coerced to objects, so C<presentsAsGiven> is true: the help
-output and C<--create-default-config> show a default as the spec wrote
-it. Every temporal type takes a value (C<glSuffix> C<'=s'>).
+Values are coerced to objects. The help output and
+C<--create-default-config> show a default as the spec wrote it, as for
+every type. Every temporal type takes a value (C<glSuffix> C<'=s'>).
 
 =head1 METHODS
 

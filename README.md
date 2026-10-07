@@ -100,13 +100,13 @@ Called with `--help`, this program prints:
    --[no-]compress             Compress the backup; --no-compress turns it
                                off
                                    Default = 1
-   --exclude <>                Pattern of files to skip; repeat for more
+   --exclude, -x <>            Pattern of files to skip; repeat for more
                                patterns
    --keep <>                   Number of backups to keep
                                    Default = 7
-   --target <>                 [REQ] Directory the backup is written to
+   --target, -t <>             [REQ] Directory the backup is written to
                                [Path]
-   --verbose                   Print more details; repeat for even more
+   --verbose, -v               Print more details; repeat for even more
                                (-vv)
 ```
 

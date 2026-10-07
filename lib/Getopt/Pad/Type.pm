@@ -85,12 +85,6 @@ class Getopt::Pad::Type :abstract {
 		return undef;
 	}
 
-	# Whether help output and config files show a value as the spec wrote
-	# it rather than coerced, for Types that coerce text into objects.
-	method presentsAsGiven() {
-		return 0;
-	}
-
 	method constraintNotes() {
 		return ();
 	}
@@ -304,8 +298,9 @@ reader should return. The default returns the value unchanged. The
 numeric types use it to turn strings into numbers.
 
 The C<valid> list and the C<lazyValid> check of an option see the
-converted value. The C<Default> line of the help output shows the
-converted default, too, unless L</presentsAsGiven> is true.
+converted value. The C<Default> line of the help output and
+C<--create-default-config> show the default as the spec wrote it, not
+converted.
 
 =head2 prepare
 
@@ -394,18 +389,6 @@ that are present and returns C<undef> when they are acceptable, otherwise
 a short description of the problem without the option name. The problem
 becomes a spec error: C<Getopt::Pad spec: option 'timeout': maxSeconds
 must be a whole number, not '1h' at ...>. The default accepts everything.
-
-=head2 presentsAsGiven
-
-=for highlighter language=perl
-
-    method presentsAsGiven() { return 1 }
-
-Optional. Whether the help output and C<--create-default-config> show a
-default as the spec wrote it instead of converted. Return true when
-L</coerce> turns text into objects, which neither the help output nor a
-config file can show. The C<date> and C<duration> types return true.
-The default is false.
 
 =head2 Methods you do not need to write
 
@@ -541,15 +524,15 @@ limit:
     $ sleeper --timeout soon
     ERROR: option '--timeout': 'soon' is not a duration such as 90s, 5m, 2h or 1d
 
-The help output shows the constraint note, the label and the converted
-default:
+The help output shows the constraint note, the label and the default as
+the spec wrote it:
 
 =for highlighter language=plain
 
     ## Options
        --timeout <>                [at most 3600 seconds] How long to wait
                                    [Duration]
-                                       Default = 30
+                                       Default = 30s
 
 A spec with C<< maxSeconds => '1h' >> fails with C<Getopt::Pad spec:
 option 'timeout': maxSeconds must be a whole number, not '1h'>, and one

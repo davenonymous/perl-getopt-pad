@@ -21,6 +21,15 @@ Revision history for Getopt::Pad
         - registerType and registerFormat load a module file only for a
           class that is not defined yet, so a class defined in the
           script without NAMES gets the NAMES message
+        - The help output lists every name of an option, the primary
+          name first, as typed: --owner, -o. Help and command line
+          errors write a single-letter name with one dash (-v)
+        - The help output and --create-default-config show defaults as
+          the spec wrote them for every type, so a custom type's
+          coerced value no longer leaks into them. The presentsAsGiven
+          type method is gone again
+        - Args show [has to exist] and [created if missing] in the help
+        - An empty list or mapping default shows no Default line
 
 0.05    2026-10-05
         - Require Object::Pad 0.818: class methods with a signature fail

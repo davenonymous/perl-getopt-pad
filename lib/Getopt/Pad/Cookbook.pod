@@ -68,14 +68,14 @@ Use the C<counter> type with a single-letter alias:
 =head2 Short and long names for one option (aliases)
 
 List all names in the option key, separated by C<|>. The first name is the
-primary name: it names the reader and is the one the help output shows.
+primary name: it names the reader and comes first in the help output.
 Single-letter names are written with one dash and can be bundled:
 
 =for highlighter language=perl
 
     options => {
-        'force|f'  => { help => 'Overwrite existing files (-f)' },
-        'output|o' => { type => 'file', help => 'Write to this file (-o)' },
+        'force|f'  => { help => 'Overwrite existing files' },
+        'output|o' => { type => 'file', help => 'Write to this file' },
     },
 
 =for highlighter language=plain
@@ -84,8 +84,13 @@ Single-letter names are written with one dash and can be bundled:
     $ tool -fo out.txt          # the same
     $ tool --force --output=out.txt
 
-The help output does not list aliases, so mention them in the C<help>
-text.
+The help output lists all names of an option, the primary name first:
+
+=for highlighter language=plain
+
+    ## Options
+       --force, -f                 Overwrite existing files
+       --output, -o <>             Write to this file [File Path]
 
 =head2 Adding -h as a short form of --help
 

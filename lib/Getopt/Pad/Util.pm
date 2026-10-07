@@ -8,7 +8,7 @@ use experimental 'signatures';
 use Exporter qw(import);
 
 our $VERSION   = '0.05';
-our @EXPORT_OK = qw(camelize specError expandTilde useColor isValidName processedWith);
+our @EXPORT_OK = qw(camelize specError expandTilde useColor isValidName optionSpelling processedWith);
 
 sub useColor($handle) {
 	return (-t $handle) && !length($ENV{NO_COLOR} // '') && (($ENV{TERM} // '') ne 'dumb') ? 1 : 0;
@@ -23,6 +23,12 @@ sub expandTilde($path) {
 # name share: a letter, then word characters or dashes.
 sub isValidName($name) {
 	return defined $name && $name =~ /\A[a-zA-Z][\w-]*\z/ ? 1 : 0;
+}
+
+# An option name as it is typed: a name of one letter with one dash, a
+# longer one with two.
+sub optionSpelling($name) {
+	return length $name == 1 ? '-' . $name : '--' . $name;
 }
 
 sub camelize($name) {

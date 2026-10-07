@@ -256,9 +256,10 @@ C<--log-level debug>. Options are declared under the C<options> key.
 
 An option is declared with one or more names separated by C<|>, such as
 C<'owner|o'>. The first name (C<owner>) is the I<primary name>. It names
-the reader and is shown in the help output. The other names (C<o>) are
-I<aliases>: the command line accepts them and shell completion offers
-them, but readers and the help output use only the primary name.
+the reader and comes first in the help output. The other names (C<o>)
+are I<aliases>: the command line accepts them, shell completion offers
+them and the help output lists them after the primary name, but readers
+and messages use only the primary name.
 
 =item arg
 
@@ -697,7 +698,7 @@ own. An unknown type name is a spec error.
 
 The option must be set, on the command line or in a config file. If
 neither sets it, parsing stops with the user error C<missing required
-option '--NAME'>. This works for flags as well: a required flag must be
+option '--NAME'> (C<'-N'> for a name of one letter). This works for flags as well: a required flag must be
 given. A value from a config file satisfies C<required>. The help
 output marks required options with C<[REQ]>. C<required> and L</default>
 exclude each other.
@@ -723,7 +724,9 @@ reader returns the checked value, for example a number for an C<int>
 option. Every parse gets its own copy of a list or mapping default, so
 changing it does not affect later parses.
 
-The help output shows the default in a C<Default> line.
+The help output shows the default as the spec wrote it in a C<Default>
+line, so an C<int> default of C<'007'> is shown as 007. An empty list or
+mapping default shows no C<Default> line.
 
 C<< default => undef >> is allowed for single-value options and mostly
 means the same as no default. There are two differences: a custom type's
@@ -1837,8 +1840,8 @@ The automatic option C<--create-default-config PATH> writes a config file
 that contains the default of every option that has one, on every level,
 in the layout described above, and exits with status 0. Groups and
 command sections without any defaults are left out. The values are the
-checked and converted defaults, so an C<int> default of C<'007'> is
-written as 7.
+defaults as the spec wrote them, so an C<int> default of C<'007'> is
+written as 007.
 
 The option refuses to overwrite an existing file, and to write through a
 symbolic link (C<config file 'PATH' already exists>). It works even when
@@ -1925,13 +1928,13 @@ L</SYNOPSIS> it looks like this:
        --[no-]compress             Compress the backup; --no-compress turns it
                                    off
                                        Default = 1
-       --exclude <>                Pattern of files to skip; repeat for more
+       --exclude, -x <>            Pattern of files to skip; repeat for more
                                    patterns
        --keep <>                   Number of backups to keep
                                        Default = 7
-       --target <>                 [REQ] Directory the backup is written to
+       --target, -t <>             [REQ] Directory the backup is written to
                                    [Path]
-       --verbose                   Print more details; repeat for even more
+       --verbose, -v               Print more details; repeat for even more
                                    (-vv)
 
 =head2 Layout
@@ -1970,8 +1973,11 @@ The L</examples>, if any.
 
 =head2 Entries
 
-An option is shown by its primary name. Aliases are not shown. The name
-is followed by a placeholder for its value:
+An option is shown by all its names, the primary name first, each written
+as it is typed: C<--owner, -o>. A L</bool> option shows its negation on
+the first name longer than one letter (C<--[no-]color, -c>), or after
+the names when all of them are single letters (C<-c, --no-c>). The names
+are followed by a placeholder for the value:
 
 =for highlighter language=plain
 
@@ -1983,12 +1989,13 @@ is followed by a placeholder for its value:
     --name <N.key=value>   objectlist
 
 The text next to the name consists of, in this order: C<[REQ]> for a
-required option or arg, C<[has to exist]> or C<[created if missing]> (for
-options only; args do not show them), the L</help> text, and the type
-label (C<[URL]>, C<[Path]>, C<[File Path]> or the L</typehint>). Below it,
-a C<Valid> line lists the values of a static L</valid> arrayref, and a
-C<Default> line shows the L</default>. A list default is shown as C<a, b>,
-a hash default as C<k=v, k2=v2>, and an objectlist default as C<0.host=a,
+required option or arg, C<[has to exist]> or C<[created if missing]>, the
+L</help> text, and the type label (C<[URL]>, C<[Path]>, C<[File Path]> or
+the L</typehint>). Below it, a C<Valid> line lists the values of a static
+L</valid> arrayref, and a C<Default> line shows the L</default> as the
+spec wrote it. An undefined default and an empty list or mapping default
+show no C<Default> line. A list default is shown as C<a, b>, a hash
+default as C<k=v, k2=v2>, and an objectlist default as C<0.host=a,
 0.port=80>.
 
 =head2 Width and color
@@ -2231,8 +2238,9 @@ text you see.
 Upper case words stand for the actual values. In the messages that start
 with C<Option> or C<Unknown option>, NAME is the option as the user typed
 it, without dashes (C<Unknown option: taget> for C<--taget>). The other
-command line messages name an option by its primary name with two dashes
-(C<option '--keep': ...>). Config file and spec messages use the primary
+command line messages name an option by its primary name as it is typed
+(C<option '--keep': ...>, or C<option '-k': ...> for a name of one
+letter). Config file and spec messages use the primary
 name without dashes (C<config value for 'keep': ...>).
 
 =head2 Command line errors
@@ -2265,6 +2273,8 @@ option as C<INDEX.FIELD=VALUE>.
 
 =item missing required option '--NAME'
 
+=item missing required option '-N'
+
 A L</required> option was not set on the command line or in a config
 file.
 
@@ -2287,7 +2297,10 @@ commands.
 
 =item option '--NAME': PROBLEM
 
-The value of an option failed a check. PROBLEM is one of the value
+=item option '-N': PROBLEM
+
+The value of an option failed a check. A name of one letter is written
+with one dash. PROBLEM is one of the value
 problems listed below.
 
 =item argument <NAME>: PROBLEM
@@ -2839,11 +2852,6 @@ C<GetOptions>:
     @ARGV = map { decode('UTF-8', $_) } @ARGV;
 
 or run perl with the C<-CA> switch.
-
-=item Aliases are not shown in the help
-
-The help output lists an option by its primary name only. Mention short
-aliases in the L</help> text if users should know them.
 
 =item The order in the help output is alphabetical
 
