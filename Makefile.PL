@@ -95,20 +95,35 @@ sub MY::postamble {
 # `make dist` (disttest alone only creates the unpacked directory),
 # then uploads it to CPAN with cpan-upload (from CPAN::Uploader).
 # Refuses to run if the git working tree is dirty, if any module's
-# $VERSION differs from the one in lib/Getopt/Pad.pm, or if a tag for
-# the current $(VERSION) already exists. See RELEASING.md.
+# $VERSION differs from the one in lib/Getopt/Pad.pm, if a tag for
+# the current $(VERSION) already exists, or if the GitHub CI run of
+# HEAD has not passed (ci-check, which needs gh). See RELEASING.md.
 #
 # disttest and dist run as separate sub-makes on purpose: as
 # prerequisites of one target they would share a single distdir
 # build, and the tarball would pack the blib/ that disttest left
 # behind. PAUSE refuses to index such a tarball.
 
-.PHONY: release release-check version-check
+.PHONY: release release-check ci-check version-check
 
 version-check :
 	@perl -ne 'if (/^\s*our \$$VERSION\s*=\s*\x27([^\x27]*)\x27/ && $$1 ne "$(VERSION)") { print "ERROR: $$ARGV has \$$VERSION $$1, expected $(VERSION)\n"; $$failed = 1 } END { exit($$failed ? 1 : 0) }' $$(find lib -name '*.pm')
 
-release-check : version-check
+ci-check :
+	@command -v gh >/dev/null 2>&1 || { \
+	    echo "ERROR: gh not found in PATH; it reads the CI result of the release commit."; \
+	    exit 1; \
+	}
+	@commit=$$(git rev-parse HEAD) || exit 1; \
+	run=$$(gh run list --workflow ci.yml --commit "$$commit" --limit 1 --json status,conclusion --jq '.[] | "\(.status) \(.conclusion)"') || exit 1; \
+	case "$$run" in \
+	    "completed success") ;; \
+	    "") echo "ERROR: no CI run for $$commit; push it and wait for CI first."; exit 1 ;; \
+	    "completed "*) echo "ERROR: the CI run for $$commit did not pass ($${run#completed }); see gh run list --commit $$commit."; exit 1 ;; \
+	    *) echo "ERROR: the CI run for $$commit has not finished; wait with gh run watch."; exit 1 ;; \
+	esac
+
+release-check : version-check ci-check
 	@git diff-index --quiet HEAD -- || { \
 	    echo "ERROR: git working tree is dirty; commit or stash first."; \
 	    exit 1; \
